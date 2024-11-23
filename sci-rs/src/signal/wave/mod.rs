@@ -1,7 +1,6 @@
 use nalgebra::RealField;
 use ndarray::{Array, ArrayBase, Data, Dimension, RawData};
 
-/// """
 /// Return a periodic square-wave waveform.
 ///
 /// The square wave has a period ``2*pi``, has value +1 from 0 to
@@ -30,15 +29,18 @@ use ndarray::{Array, ArrayBase, Data, Dimension, RawData};
 /// --------
 /// A 5 Hz waveform sampled at 500 Hz for 1 second:
 ///
+/// ```custom,{class=language-python}
 /// >>> import numpy as np
 /// >>> from scipy import signal
 /// >>> import matplotlib.pyplot as plt
 /// >>> t = np.linspace(0, 1, 500, endpoint=False)
 /// >>> plt.plot(t, signal.square(2 * np.pi * 5 * t))
 /// >>> plt.ylim(-2, 2)
+/// ```
 ///
 /// A pulse-width modulated sine wave:
 ///
+/// ```custom,{class=language-python}
 /// >>> plt.figure()
 /// >>> sig = np.sin(2 * np.pi * t)
 /// >>> pwm = signal.square(2 * np.pi * 30 * t, duty=(sig + 1)/2)
@@ -47,8 +49,7 @@ use ndarray::{Array, ArrayBase, Data, Dimension, RawData};
 /// >>> plt.subplot(2, 1, 2)
 /// >>> plt.plot(t, pwm)
 /// >>> plt.ylim(-1.5, 1.5)
-///
-/// """
+/// ```
 pub fn square<F, S, D>(t: &ArrayBase<S, D>, duty: F) -> Array<F, D>
 where
     F: RealField,

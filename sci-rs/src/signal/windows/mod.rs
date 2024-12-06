@@ -256,6 +256,28 @@ where
 /// * [GeneralHamming] // Needs Window Coefficients.
 // Dpss, // Needs Normalized Half-Bandwidth.
 // Chebwin, // Needs Attenuation.
+///
+/// Examples
+/// -----
+/// ```
+/// use approx:: assert_abs_diff_eq;
+/// use sci_rs::signal::filter::design::{firwin_dyn, FilterBandType};
+/// use sci_rs::signal::windows::{get_window, GetWindow, GetWindowBuilder};
+///
+/// let window_struct = get_window(GetWindowBuilder::<f64>::Hamming, 3, None);
+/// let window: Vec<f64> = window_struct.get_window();
+/// let expected = vec![0.08, 0.77, 0.77];
+///
+/// fn assert_vec_eq(a: Vec<f64>, b: Vec<f64>) {
+///     for (a, b) in a.into_iter().zip(b) {
+///         assert_abs_diff_eq!(a, b, epsilon = 1e-6);
+///     }
+/// }
+///
+/// assert_vec_eq(window, expected);
+/// ```
+///
+///
 /// # References
 /// <https://docs.scipy.org/doc/scipy/reference/generated/scipy.signal.windows.get_window.html>
 pub fn get_window<F>(window: GetWindowBuilder<'_, F>, nx: usize, fftbins: Option<bool>) -> Window<F>

@@ -1,0 +1,19 @@
+[package]
+name = "sciprs"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+[lib]
+name = "sciprs"
+crate-type = ["cdylib"]
+path = "src/lib.rs"
+
+[dependencies]
+pyo3 = { version = "0.23.3", features = ["extension-module"]}
+sci-rs = { path = "../sci-rs", features=["std"] }
+numpy = "0.23"
+ndarray = "0.16.1"
+
+[tool.maturin]
+profile = "release"

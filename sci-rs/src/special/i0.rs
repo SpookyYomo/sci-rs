@@ -10,7 +10,7 @@ use num_traits::real::Real;
 /// All [functions located in the `Faster versions of common Bessel
 /// functions.`](<https://docs.scipy.org/doc/scipy/reference/special.html#faster-versions-of-common-bessel-functions>)
 /// Note strongly that Bessel has tremendous inacurracy for f32 compared to f64.
-pub(crate) trait Bessel {
+pub trait Bessel {
     /// Modified Bessel function of order 0.
     ///
     /// ## Notes

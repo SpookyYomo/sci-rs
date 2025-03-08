@@ -5,4 +5,4 @@ mod combinatorics;
 mod i0;
 
 pub use combinatorics::*;
-pub(crate) use i0::*;
+pub use i0::*;

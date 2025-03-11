@@ -18,12 +18,18 @@ pub enum Error {
         /// Explaining why arg is invalid.
         reason: alloc::string::String,
     },
+    /// Argument parsed into function were invalid.
+    #[cfg(not(feature = "alloc"))]
+    InvalidArg,
     /// Two or more optional arguments passed into functions conflict.
     #[cfg(feature = "alloc")]
-    ConfictArg {
+    ConflictArg {
         /// Explaining what arg is invalid.
         reason: alloc::string::String,
     },
+    /// Two or more optional arguments passed into functions conflict.
+    #[cfg(not(feature = "alloc"))]
+    ConflictArg,
 }
 
 impl fmt::Display for Error {

@@ -11,7 +11,6 @@ use super::{
     ZpkFormatFilter,
 };
 
-/// """
 /// Split into complex and real parts, combining conjugate pairs.
 ///
 /// The 1-D input vector `z` is split up into its complex (`zc`) and real (`zr`)
@@ -49,7 +48,6 @@ use super::{
 /// See Also
 /// --------
 /// _cplxpair
-/// """
 #[cfg(feature = "alloc")]
 pub fn cplxreal_dyn<F>(z: Vec<Complex<F>>, tol: Option<F>) -> (Vec<Complex<F>>, Vec<Complex<F>>)
 where

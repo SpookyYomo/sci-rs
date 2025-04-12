@@ -17,11 +17,9 @@ use alloc::vec;
 #[cfg(feature = "alloc")]
 use alloc::vec::Vec;
 
-///
 /// Choice of zeros/poles pairing for the zpk2sos conversion
 ///
 /// Matches scipy.signal.zpk2sos pairing
-///
 pub enum ZpkPairing {
     /// Default
     Minimal,
@@ -43,8 +41,6 @@ enum WhichNearestComplex {
 ///     Array of second-order filter coefficients, with shape
 ///     ``(n_sections, 6)``. See `sosfilt` for the SOS filter format
 ///     specification.
-///
-///
 #[cfg(feature = "alloc")]
 pub fn zpk2sos_dyn<F>(
     order: usize,

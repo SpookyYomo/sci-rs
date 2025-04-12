@@ -11,7 +11,6 @@ use super::{
 #[cfg(feature = "alloc")]
 use alloc::vec::Vec;
 
-/// """
 /// Transform a lowpass filter prototype to a bandpass filter.
 ///
 /// Return an analog band-pass filter with center frequency `wo` and
@@ -57,8 +56,6 @@ use alloc::vec::Vec;
 /// geometric (log frequency) symmetry about `wo`.
 ///
 /// .. versionadded:: 1.1.0
-///
-/// """
 #[cfg(feature = "alloc")]
 pub fn lp2bp_zpk_dyn<F>(zpk: ZpkFormatFilter<F>, wo: Option<F>, bw: Option<F>) -> ZpkFormatFilter<F>
 where

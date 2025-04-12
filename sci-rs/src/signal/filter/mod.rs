@@ -32,6 +32,8 @@ mod savgol_filter;
 mod sosfilt_zi;
 #[cfg(feature = "alloc")]
 mod sosfiltfilt;
+#[cfg(feature = "alloc")]
+mod upfirdn;
 
 #[cfg(feature = "alloc")]
 pub use lfilter_zi::*;
@@ -41,3 +43,5 @@ pub use savgol_filter::*;
 pub use sosfilt_zi::*;
 #[cfg(feature = "alloc")]
 pub use sosfiltfilt::*;
+#[cfg(feature = "alloc")]
+pub use upfirdn::*;

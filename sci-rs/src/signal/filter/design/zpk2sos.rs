@@ -17,11 +17,9 @@ use alloc::vec;
 #[cfg(feature = "alloc")]
 use alloc::vec::Vec;
 
-///
 /// Choice of zeros/poles pairing for the zpk2sos conversion
 ///
 /// Matches scipy.signal.zpk2sos pairing
-///
 pub enum ZpkPairing {
     /// Default
     Minimal,
@@ -43,8 +41,6 @@ enum WhichNearestComplex {
 ///     Array of second-order filter coefficients, with shape
 ///     ``(n_sections, 6)``. See `sosfilt` for the SOS filter format
 ///     specification.
-///
-///
 #[cfg(feature = "alloc")]
 pub fn zpk2sos_dyn<F>(
     order: usize,
@@ -106,21 +102,21 @@ where
         }
 
         // TODO: Why is this logic funky?
-        let n_sections = (p.len().max(z.len()) + 1) / 2;
+        let n_sections = p.len().max(z.len()).div_ceil(2);
 
         if p.len() % 2 == 1 && matches!(pairing, ZpkPairing::Nearest) {
             z.push(Complex::zero());
             p.push(Complex::zero());
         }
 
-        assert!(z.len() == p.len());
+        debug_assert!(z.len() == p.len());
 
         n_sections
     } else {
         if p.len() < z.len() {
             panic!("for analog zpk2sos conversion, must have len(p)>=len(z)");
         }
-        (p.len() + 1) / 2
+        p.len().div_ceil(2)
     };
 
     // Ensure we have complex conjugate pairs

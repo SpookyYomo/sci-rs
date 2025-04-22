@@ -19,23 +19,23 @@ use alloc::vec::Vec;
 /// Parameters
 /// ----------
 /// * z : array_like  
-///     Zeros of the analog filter transfer function.
+///   Zeros of the analog filter transfer function.
 /// * p : array_like  
-///     Poles of the analog filter transfer function.
+///   Poles of the analog filter transfer function.
 /// * k : float  
-///     System gain of the analog filter transfer function.
+///   System gain of the analog filter transfer function.
 /// * wo : float  
-///     Desired cutoff, as angular frequency (e.g., rad/s).
-///     Defaults to no change.
+///   Desired cutoff, as angular frequency (e.g., rad/s).
+///   Defaults to no change.
 ///
 /// Returns
 /// -------
 /// * z : ndarray  
-///     Zeros of the transformed low-pass filter transfer function.
+///   Zeros of the transformed low-pass filter transfer function.
 /// * p : ndarray  
-///     Poles of the transformed low-pass filter transfer function.
+///   Poles of the transformed low-pass filter transfer function.
 /// * k : float  
-///     System gain of the transformed low-pass filter.
+///   System gain of the transformed low-pass filter.
 ///
 /// See Also
 /// --------

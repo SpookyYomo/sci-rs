@@ -11,7 +11,6 @@ use super::{
 #[cfg(feature = "alloc")]
 use alloc::vec::Vec;
 
-/// """
 /// Transform a lowpass filter prototype to a bandpass filter.
 ///
 /// Return an analog band-pass filter with center frequency `wo` and
@@ -20,27 +19,27 @@ use alloc::vec::Vec;
 ///
 /// Parameters
 /// ----------
-/// z : array_like
-///     Zeros of the analog filter transfer function.
-/// p : array_like
-///     Poles of the analog filter transfer function.
-/// k : float
-///     System gain of the analog filter transfer function.
-/// wo : float
-///     Desired passband center, as angular frequency (e.g., rad/s).
-///     Defaults to no change.
-/// bw : float
-///     Desired passband width, as angular frequency (e.g., rad/s).
-///     Defaults to 1.
+/// * `z` : array_like  
+///   Zeros of the analog filter transfer function.
+/// * `p` : array_like  
+///   Poles of the analog filter transfer function.
+/// * `k` : float  
+///   System gain of the analog filter transfer function.
+/// * `wo` : float  
+///   Desired passband center, as angular frequency (e.g., rad/s).
+///   Defaults to no change.
+/// * `bw` : float  
+///   Desired passband width, as angular frequency (e.g., rad/s).
+///   Defaults to 1.
 ///
 /// Returns
 /// -------
-/// z : ndarray
-///     Zeros of the transformed band-pass filter transfer function.
-/// p : ndarray
-///     Poles of the transformed band-pass filter transfer function.
-/// k : float
-///     System gain of the transformed band-pass filter.
+/// * `z` : ndarray  
+///   Zeros of the transformed band-pass filter transfer function.
+/// * `p` : ndarray  
+///   Poles of the transformed band-pass filter transfer function.
+/// * `k` : float  
+///   System gain of the transformed band-pass filter.
 ///
 /// See Also
 /// --------
@@ -57,8 +56,6 @@ use alloc::vec::Vec;
 /// geometric (log frequency) symmetry about `wo`.
 ///
 /// .. versionadded:: 1.1.0
-///
-/// """
 #[cfg(feature = "alloc")]
 pub fn lp2bp_zpk_dyn<F>(zpk: ZpkFormatFilter<F>, wo: Option<F>, bw: Option<F>) -> ZpkFormatFilter<F>
 where

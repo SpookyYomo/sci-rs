@@ -10,7 +10,6 @@ use super::{
 #[cfg(feature = "alloc")]
 use alloc::vec::Vec;
 
-#[cfg(feature = "alloc")]
 /// Transform a lowpass filter prototype to a bandstop filter.
 ///
 /// Return an analog band-stop filter with center frequency `wo` and
@@ -54,6 +53,7 @@ use alloc::vec::Vec;
 ///
 /// This is the "wideband" transformation, producing a stopband with
 /// geometric (log frequency) symmetry about `wo`.
+#[cfg(feature = "alloc")]
 pub fn lp2bs_zpk_dyn<F>(zpk: ZpkFormatFilter<F>, wo: Option<F>, bw: Option<F>) -> ZpkFormatFilter<F>
 where
     F: RealField + Float,

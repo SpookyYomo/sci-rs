@@ -7,6 +7,8 @@ extern crate alloc;
 
 use core::{error, fmt};
 
+pub type Result<T> = core::result::Result<T, Error>;
+
 /// Errors raised whilst running sci-rs.
 #[derive(Debug, PartialEq, Eq)]
 pub enum Error {

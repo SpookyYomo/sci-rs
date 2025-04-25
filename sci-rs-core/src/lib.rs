@@ -4,6 +4,8 @@
 
 #[cfg(feature = "alloc")]
 extern crate alloc;
+#[cfg(feature = "alloc")]
+use alloc::format;
 
 use core::{error, fmt};
 
@@ -36,7 +38,24 @@ pub enum Error {
 
 impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        todo!()
+        write!(
+            f,
+            "{}",
+            match self {
+                #[cfg(feature = "alloc")]
+                Error::InvalidArg { arg, reason } =>
+                    format!("Invalid Argument on arg = {} with reason = {}", arg, reason),
+                #[cfg(not(feature = "alloc"))]
+                Error::InvalidArg =>
+                    "There were invalid arguments. Reasons not shown without `alloc` feature.",
+                #[cfg(feature = "alloc")]
+                Error::ConflictArg { reason } =>
+                    format!("Conflicting Arguments with reason = {}", reason),
+                #[cfg(not(feature = "alloc"))]
+                Error::ConflictArg =>
+                    "There were conflicting arguments. Reasons not shown without `alloc` feature.",
+            }
+        )
     }
 }
 

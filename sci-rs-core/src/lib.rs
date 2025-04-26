@@ -34,6 +34,12 @@ pub enum Error {
     /// Two or more optional arguments passed into functions conflict.
     #[cfg(not(feature = "alloc"))]
     ConflictArg,
+    /// Errors raised by [ndarray_conv::Error]
+    #[cfg(feature = "alloc")]
+    Conv { reason: alloc::string::String },
+    /// Errors raised by [ndarray_conv::Error]
+    #[cfg(not(feature = "alloc"))]
+    Conv,
 }
 
 impl fmt::Display for Error {
@@ -54,6 +60,13 @@ impl fmt::Display for Error {
                 #[cfg(not(feature = "alloc"))]
                 Error::ConflictArg =>
                     "There were conflicting arguments. Reasons not shown without `alloc` feature.",
+                #[cfg(feature = "alloc")]
+                Error::Conv { reason } => format!(
+                    "An error occurred during the convolution from ndarray_conv with reason {}.",
+                    reason
+                ),
+                #[cfg(not(feature = "alloc"))]
+                Error::Conv => "An error occurred during the convolution from ndarray_conv. Reasons not shown without `alloc` feature.",
             }
         )
     }

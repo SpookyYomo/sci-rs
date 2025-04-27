@@ -74,4 +74,6 @@ impl fmt::Display for Error {
 
 impl error::Error for Error {}
 
+/// Collection of numpy-like functions for use by sci-rs.
+/// Provide behaviour parity against Numpy, even if the types are not identical.
 pub mod num_rs;

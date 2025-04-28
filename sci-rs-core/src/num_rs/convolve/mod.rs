@@ -84,9 +84,6 @@ where
     // ? Debug for ndarray_conv::ConvExt::conv
     T: num_traits::NumAssign + core::marker::Copy + core::fmt::Debug,
 {
-    // Treat v as the convolution kernel.
-    debug_assert!(v.len() <= a.len());
-
     // Flip the convolution kernel (see [ndarray_conv#6](https://github.com/TYPEmber/ndarray-conv/issues/6))
     // waiting for ndarray_conv v0.4.2 to not require for us to flip
     let v: Array1<_> = {

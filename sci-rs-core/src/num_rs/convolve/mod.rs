@@ -24,7 +24,7 @@ pub enum ConvolveMode {
 /// * `a` : (N,) [[array_like]]([ndarray::Array1])  
 ///   Signal to be (linearly) convolved.
 /// * `v` : (M,) [[array_like]]([ndarray::Array1])  
-///   Second one-dimensional input array. Convolution kernel by reference.
+///   Second one-dimensional input array.
 /// * `mode` : [ConvolveMode]  
 ///   [ConvolveMode::Full]:  
 ///   By default, mode is 'full'.  This returns the convolution at each point of overlap, with an
@@ -52,7 +52,7 @@ pub enum ConvolveMode {
 /// let v = array![0., 1., 0.5];
 ///
 /// let expected = array![0., 1., 2.5, 4., 1.5];
-/// let result = convolve(a, (&v).into(), ConvolveMode::Full).unwrap();
+/// let result = convolve((&a).into(), (&v).into(), ConvolveMode::Full).unwrap();
 /// assert_eq!(result, expected);
 /// ```
 /// With [ConvolveMode::Same]:
@@ -64,7 +64,7 @@ pub enum ConvolveMode {
 /// let v = array![0., 1., 0.5];
 ///
 /// let expected = array![1., 2.5, 4.];
-/// let result = convolve(a, (&v).into(), ConvolveMode::Same).unwrap();
+/// let result = convolve((&a).into(), (&v).into(), ConvolveMode::Same).unwrap();
 /// assert_eq!(result, expected);
 /// ```
 /// With [ConvolveMode::Same]:
@@ -76,11 +76,12 @@ pub enum ConvolveMode {
 /// let v = array![0., 1., 0.5];
 ///
 /// let expected = array![2.5];
-/// let result = convolve(a, (&v).into(), ConvolveMode::Valid).unwrap();
+/// let result = convolve((&a).into(), (&v).into(), ConvolveMode::Valid).unwrap();
 /// assert_eq!(result, expected);
 /// ```
-pub fn convolve<T>(a: Array1<T>, v: ArrayView1<T>, mode: ConvolveMode) -> Result<Array1<T>>
+pub fn convolve<T>(a: ArrayView1<T>, v: ArrayView1<T>, mode: ConvolveMode) -> Result<Array1<T>>
 where
+    // ? Debug for ndarray_conv::ConvExt::conv
     T: num_traits::NumAssign + core::marker::Copy + core::fmt::Debug,
 {
     // Treat v as the convolution kernel.
@@ -95,10 +96,17 @@ where
     };
 
     // Convolve
-    a.conv(&v, mode.into(), PaddingMode::Zeros)
-        .map_err(|e| Error::Conv {
+    let result = a.conv(&v, mode.into(), PaddingMode::Zeros);
+    #[cfg(feature = "alloc")]
+    {
+        result.map_err(|e| Error::Conv {
             reason: e.to_string(),
         })
+    }
+    #[cfg(not(feature = "alloc"))]
+    {
+        result.map_err({ Error::Conv })
+    }
 }
 
 #[cfg(test)]
@@ -113,7 +121,7 @@ mod linear_convolve {
         let v = array![0., 1., 0.5];
 
         let expected = array![0., 1., 2.5, 4., 1.5];
-        let result = convolve(a, (&v).into(), ConvolveMode::Full).unwrap();
+        let result = convolve((&a).into(), (&v).into(), ConvolveMode::Full).unwrap();
         assert_eq!(result, expected);
     }
 
@@ -123,7 +131,7 @@ mod linear_convolve {
         let v = array![0., 1., 0.5];
 
         let expected = array![1., 2.5, 4.];
-        let result = convolve(a, (&v).into(), ConvolveMode::Same).unwrap();
+        let result = convolve((&a).into(), (&v).into(), ConvolveMode::Same).unwrap();
         assert_eq!(result, expected);
     }
 
@@ -133,7 +141,7 @@ mod linear_convolve {
         let v = array![0., 1., 0.5];
 
         let expected = array![2.5];
-        let result = convolve(a, (&v).into(), ConvolveMode::Valid).unwrap();
+        let result = convolve((&a).into(), (&v).into(), ConvolveMode::Valid).unwrap();
         assert_eq!(result, expected);
     }
 }

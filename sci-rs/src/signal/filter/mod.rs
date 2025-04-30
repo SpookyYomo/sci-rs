@@ -13,7 +13,9 @@ pub use kalmanfilt::kalman::kalman_filter;
 ///
 pub use gaussfilt as gaussian_filter;
 
-/// Digital IIR/FIR filter design
+/// Digital IIR/FIR filter design  
+/// Functions located in the [`Filter design` section of
+/// `scipy.signal`](https://docs.scipy.org/doc/scipy/reference/signal.html#filter-design).
 pub mod design;
 
 mod ext;
@@ -23,6 +25,8 @@ pub use ext::*;
 pub use sosfilt::*;
 
 #[cfg(feature = "alloc")]
+mod lfilter;
+#[cfg(feature = "alloc")]
 mod lfilter_zi;
 #[cfg(feature = "alloc")]
 mod savgol_filter;
@@ -31,6 +35,8 @@ mod sosfilt_zi;
 #[cfg(feature = "alloc")]
 mod sosfiltfilt;
 
+#[cfg(feature = "alloc")]
+pub use lfilter::*;
 #[cfg(feature = "alloc")]
 pub use lfilter_zi::*;
 #[cfg(feature = "alloc")]

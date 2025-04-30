@@ -118,10 +118,9 @@ where
 
     let b: Array1<T> = b.mapv(|bi| bi / a[0]);
 
-    let out_dim: Dim<_> = {
+    let (out_dim, out_dim_inner): (Dim<_>, [Ix; N]) = {
         let mut tmp: [Ix; N] = ndarray_ndim_as_array(&x);
-        tmp[axis_inner] -= b.len();
-        IntoDimension::into_dimension(tmp)
+        (IntoDimension::into_dimension(tmp), tmp)
     };
     let mut out = ArrayBase::zeros(out_dim);
 
@@ -137,15 +136,17 @@ where
             // ```
             use sci_rs_core::num_rs::{convolve, ConvolveMode};
             let out_full = convolve(y, (&b).into(), ConvolveMode::Full).unwrap();
-            let out_full_slice: ArrayView1<T> = out_full.slice(
-                SliceInfo::try_from([SliceInfoElem::Slice {
-                    start: b.len() as isize + 1,
-                    end: None,
-                    step: 1,
-                }])
-                .unwrap(),
-            );
-            out_full_slice.to_owned().assign(&out_slice);
+            let out_full_slice: ArrayView1<T> = out_full
+                .slice(
+                    SliceInfo::try_from([SliceInfoElem::Slice {
+                        start: (out_dim_inner[axis_inner] - b.len()) as isize,
+                        end: None,
+                        step: 1,
+                    }])
+                    .unwrap(),
+                )
+                .reborrow();
+            out_full_slice.assign_to(&mut out_slice);
         });
 
     (out, None)
@@ -163,10 +164,8 @@ mod test {
         let a = array![1.];
         let x = array![1., 2., 3., 4., 3., 5., 6.];
         let expected = array![5., 14., 24., 36., 38., 47., 61.];
-        eprintln!("here");
 
         let (result, _) = lfilter((&b).into(), (&a).into(), x, None, None);
-        eprintln!("{}", &result);
 
         assert_eq!(result.len(), expected.len());
         result.into_iter().zip(expected).for_each(|(r, e)| {

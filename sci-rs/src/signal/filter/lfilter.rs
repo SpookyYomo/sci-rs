@@ -104,10 +104,9 @@ where
         unimplemented!()
     };
 
-    let mut x: ArrayBase<S, _> = x.into();
     // We make a best effort to convert into appropriate axis object.
     let (axis, axis_inner): (Axis, usize) = {
-        let axis_inner: isize = axis.unwrap_or(-1).into();
+        let axis_inner: isize = axis.unwrap_or(-1);
         if axis_inner >= 0 {
             (Axis(axis_inner as usize), axis_inner as usize)
         } else {
@@ -131,16 +130,15 @@ where
             // np.convolve uses full mode, but is eventually slices out with
             // ```py
             // ind = out_full.ndim * [slice(None)] # creates the "[:, :, ..., :]" slicer
-            // ind[axis] = slice(out_full.shape[axis] - len(b) + 1, None)
-            // # [out_full.shape[..] - len(b) + 1 : None]
+            // ind[axis] = slice(out_full.shape[axis] - len(b) + 1) # [:out_full.shape[..] - len(b) + 1]
             // ```
             use sci_rs_core::num_rs::{convolve, ConvolveMode};
             let out_full = convolve(y, (&b).into(), ConvolveMode::Full).unwrap();
             let out_full_slice: ArrayView1<T> = out_full
                 .slice(
                     SliceInfo::try_from([SliceInfoElem::Slice {
-                        start: (out_dim_inner[axis_inner] - b.len()) as isize,
-                        end: None,
+                        start: 0,
+                        end: Some(out_dim_inner[axis_inner] as isize),
                         step: 1,
                     }])
                     .unwrap(),

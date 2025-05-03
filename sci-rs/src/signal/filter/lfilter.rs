@@ -94,7 +94,7 @@ pub fn lfilter<'a, T, S, const N: usize>(
 where
     [Ix; N]: IntoDimension<Dim = Dim<[Ix; N]>>,
     Dim<[Ix; N]>: RemoveAxis,
-    T: NumAssign + FromPrimitive + Copy + core::fmt::Debug + 'a,
+    T: NumAssign + FromPrimitive + Copy + 'a,
     S: Data<Elem = T> + 'a,
 {
     if a.len() > 1 {

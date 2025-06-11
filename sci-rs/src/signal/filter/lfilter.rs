@@ -5,6 +5,7 @@ use ndarray::{
     Ix, IxDyn, RemoveAxis, SliceInfo, SliceInfoElem,
 };
 use num_traits::{FromPrimitive, Num, NumAssign};
+use sci_rs_core::{Error, Result};
 
 /// /// Internal function for obtaining length of all axis as array from input from input.
 ///
@@ -75,7 +76,7 @@ where
 /// let a = array![1.];
 /// let x = array![1., 2., 3., 4., 3., 5., 6.];
 /// let expected = array![5., 14., 24., 36., 38., 47., 61.];
-/// let (result, _) = lfilter((&b).into(), (&a).into(), x, None, None);
+/// let (result, _) = lfilter((&b).into(), (&a).into(), x, None, None).unwrap();
 ///
 /// assert_eq!(result.len(), expected.len());
 /// result.into_iter().zip(expected).for_each(|(r, e)| {
@@ -95,7 +96,7 @@ pub fn lfilter<'a, T, S, const N: usize>(
     x: ArrayBase<S, Dim<[Ix; N]>>,
     axis: Option<isize>,
     zi: Option<Vec<T>>,
-) -> (Array<T, Dim<[Ix; N]>>, Option<Vec<T>>)
+) -> Result<(Array<T, Dim<[Ix; N]>>, Option<Vec<T>>)>
 where
     [Ix; N]: IntoDimension<Dim = Dim<[Ix; N]>>,
     Dim<[Ix; N]>: RemoveAxis,
@@ -105,9 +106,21 @@ where
     if a.len() > 1 {
         unimplemented!()
     };
-    if zi.is_some() {
-        unimplemented!()
-    };
+
+    // Before we convert into the appropriate axis object, we have to check at runtime that the
+    // axis value specified is within -N <= axis < N.
+    if axis.is_some_and(|axis| {
+        !(if axis < 0 {
+            axis.unsigned_abs() <= N
+        } else {
+            axis.unsigned_abs() < N
+        })
+    }) {
+        return Err(Error::InvalidArg {
+            arg: "axis".into(),
+            reason: "index out of range.".into(),
+        });
+    }
 
     // We make a best effort to convert into appropriate axis object.
     let (axis, axis_inner): (Axis, usize) = {
@@ -120,6 +133,19 @@ where
         }
     };
 
+    if a.is_empty() {
+        return Err(Error::InvalidArg {
+            arg: "a".into(),
+            reason:
+                "Empty 1D array will result in inf/nan result. Consider setting to `array![1.]`."
+                    .into(),
+        });
+    } else if a.first().unwrap().is_zero() {
+        return Err(Error::InvalidArg {
+            arg: "a".into(),
+            reason: "First element of a found to be zero.".into(),
+        });
+    }
     let b: Array1<T> = b.mapv(|bi| bi / a[0]);
 
     let (out_dim, out_dim_inner): (Dim<_>, [Ix; N]) = {
@@ -152,27 +178,51 @@ where
             out_full_slice.assign_to(&mut out_slice);
         });
 
-    (out, None)
+    Ok((out, None))
 }
 
 #[cfg(test)]
 mod test {
     use super::*;
     use alloc::vec;
+    use ndarray::{array, ArrayBase, Dim, Ix, OwnedRepr};
 
     #[test]
     fn one_dim_no_zi() {
-        use ndarray::{array, ArrayBase, Dim, Ix, OwnedRepr};
         let b = array![5., 4., 1., 2.];
         let a = array![1.];
         let x = array![1., 2., 3., 4., 3., 5., 6.];
         let expected = array![5., 14., 24., 36., 38., 47., 61.];
 
-        let (result, _) = lfilter((&b).into(), (&a).into(), x, None, None);
+        let Ok((result, None)) = lfilter((&b).into(), (&a).into(), x, None, None) else {
+            panic!("Should not have errored")
+        };
 
         assert_eq!(result.len(), expected.len());
         result.into_iter().zip(expected).for_each(|(r, e)| {
             assert_eq!(r, e);
         })
+    }
+
+    #[test]
+    fn invalid_axis() {
+        let b = array![5., 4., 1., 2.];
+        let a = array![1.];
+        let x = array![1., 2., 3., 4., 3., 5., 6.];
+
+        let result = lfilter((&b).into(), (&a).into(), x.clone(), Some(2), None);
+        assert!(result.is_err());
+
+        let result = lfilter((&b).into(), (&a).into(), x.clone(), Some(1), None);
+        assert!(result.is_err());
+
+        let result = lfilter((&b).into(), (&a).into(), x.clone(), Some(0), None);
+        assert!(result.is_ok());
+
+        let result = lfilter((&b).into(), (&a).into(), x.clone(), Some(-1), None);
+        assert!(result.is_ok());
+
+        let result = lfilter((&b).into(), (&a).into(), x, Some(-2), None);
+        assert!(result.is_err());
     }
 }

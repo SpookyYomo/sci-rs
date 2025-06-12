@@ -165,7 +165,7 @@ where
             // ```
             use sci_rs_core::num_rs::{convolve, ConvolveMode};
             let out_full = convolve(y, (&b).into(), ConvolveMode::Full).unwrap();
-            let out_full_slice: ArrayView1<T> = out_full
+            out_full
                 .slice(
                     SliceInfo::try_from([SliceInfoElem::Slice {
                         start: 0,
@@ -174,8 +174,7 @@ where
                     }])
                     .unwrap(),
                 )
-                .reborrow();
-            out_full_slice.assign_to(&mut out_slice);
+                .assign_to(&mut out_slice);
         });
 
     Ok((out, None))

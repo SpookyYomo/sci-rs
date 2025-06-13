@@ -103,6 +103,14 @@ where
     T: NumAssign + FromPrimitive + Copy + 'a,
     S: Data<Elem = T> + 'a,
 {
+    if N == 0 {
+        // `_validate_x` condition - ndarray allows for 0-dimensional arrays
+        return Err(Error::InvalidArg {
+            arg: "x".into(),
+            reason: "Linear filter requires at least 1-dimensional `x`.".into(),
+        });
+    }
+
     if a.len() > 1 {
         unimplemented!()
     };

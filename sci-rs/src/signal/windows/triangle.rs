@@ -71,7 +71,7 @@ where
         }
         let (m, needs_trunc) = extend(self.m, self.sym);
 
-        let mut n = (1..=((m + 1) / 2)).map(|x| W::from(x).unwrap());
+        let mut n = (1..=(m.div_ceil(2))).map(|x| W::from(x).unwrap());
         let m_f: W = W::from(m).unwrap();
         let w: Vec<W> = match m % 2 {
             0 => {
@@ -111,7 +111,6 @@ mod tests {
             let nx = 2 * i;
             let tri = Triangle::new(nx, true);
             let expected: Vec<f64> = (0..nx)
-                .into_iter()
                 .chain((0..nx).rev())
                 .filter(|n| n % 2 == 1)
                 .map(|n| n as f64 / nx as f64)
@@ -136,7 +135,6 @@ mod tests {
             let nx = 2 * i;
             let tri = Triangle::new(nx, false);
             let expected: Vec<f64> = (1..=(nx / 2) + 1)
-                .into_iter()
                 .chain((1..(nx / 2) + 1).rev())
                 .take(nx)
                 .map(|n| n as f64 / ((nx / 2) + 1) as f64)
@@ -160,9 +158,8 @@ mod tests {
         for i in 1..upper {
             let nx = 2 * i + 1;
             let tri = Triangle::new(nx, true);
-            let expected: Vec<_> = (1..=(nx + 1) / 2)
-                .into_iter()
-                .chain((1..=(nx + 1) / 2).rev().skip(1))
+            let expected: Vec<_> = (1..=nx.div_ceil(2))
+                .chain((1..=nx.div_ceil(2)).rev().skip(1))
                 .map(|n| (n as f64) / ((nx + 1) as f64 / 2.))
                 .collect();
 
@@ -185,8 +182,7 @@ mod tests {
             let nx = 2 * i + 1;
             let tri = Triangle::new(nx, false);
             let expected: Vec<_> = (0..=nx)
-                .into_iter()
-                .chain((0..=nx).into_iter().rev())
+                .chain((0..=nx).rev())
                 .filter(|n| n % 2 == 1)
                 .take(nx)
                 .map(|n| n as f64 / (nx as f64 + 1.))

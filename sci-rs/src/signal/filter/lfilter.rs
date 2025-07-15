@@ -89,7 +89,6 @@ where
 /// Panics if axis is out or range.
 // NOTE: zi's TypeSig inherits from lfilter's output, in accordance with examples section of
 // documentation, both lfilter_zi and this should eventually support NDArray.
-#[cfg(feature = "alloc")]
 pub fn lfilter<'a, T, S, const N: usize>(
     b: ArrayView1<'a, T>,
     a: ArrayView1<'a, T>,

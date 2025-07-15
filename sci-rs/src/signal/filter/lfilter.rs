@@ -191,23 +191,44 @@ where
 mod test {
     use super::*;
     use alloc::vec;
+    use approx::assert_relative_eq;
     use ndarray::{array, ArrayBase, Dim, Ix, OwnedRepr};
 
+    // Tests that have a = [1.] with zi = None on input x with dim = 1.
     #[test]
-    fn one_dim_no_zi() {
-        let b = array![5., 4., 1., 2.];
-        let a = array![1.];
-        let x = array![1., 2., 3., 4., 3., 5., 6.];
-        let expected = array![5., 14., 24., 36., 38., 47., 61.];
+    fn one_dim_fir_no_zi() {
+        {
+            // Tests for b.sum() > 1.
+            let b = array![5., 4., 1., 2.];
+            let a = array![1.];
+            let x = array![1., 2., 3., 4., 3., 5., 6.];
+            let expected = array![5., 14., 24., 36., 38., 47., 61.];
 
-        let Ok((result, None)) = lfilter((&b).into(), (&a).into(), x, None, None) else {
-            panic!("Should not have errored")
-        };
+            let Ok((result, None)) = lfilter((&b).into(), (&a).into(), x, None, None) else {
+                panic!("Should not have errored")
+            };
 
-        assert_eq!(result.len(), expected.len());
-        result.into_iter().zip(expected).for_each(|(r, e)| {
-            assert_eq!(r, e);
-        })
+            assert_eq!(result.len(), expected.len());
+            result.into_iter().zip(expected).for_each(|(r, e)| {
+                assert_eq!(r, e);
+            })
+        }
+        {
+            // Tests for b[i] < 0 for some i, such that b.sum() = 1.
+            let b = array![0.7, -0.3, 0.6];
+            let a = array![1.];
+            let x = array![1., 2., 3., 4., 3., 5., 6.];
+            let expected = array![0.7, 1.1, 2.1, 3.1, 2.7, 5., 4.5];
+
+            let Ok((result, None)) = lfilter((&b).into(), (&a).into(), x, None, None) else {
+                panic!("Should not have errored")
+            };
+
+            assert_eq!(result.len(), expected.len());
+            result.into_iter().zip(expected).for_each(|(r, e)| {
+                assert_relative_eq!(r, e, max_relative = 1e-6);
+            })
+        }
     }
 
     #[test]

@@ -25,6 +25,49 @@ where
     tmp
 }
 
+/// Internal function for casting into [Axis] and appropriate usize from isize.
+///
+/// # Parameters
+/// axis: The user-specificed axis which filter is to be applied on.
+/// x: The input-data whose axis object that will be manipulated against.
+fn check_and_get_axis<'a, T, S, const N: usize>(
+    axis: Option<isize>,
+    x: &ArrayBase<S, Dim<[Ix; N]>>,
+) -> Result<(Axis, usize)>
+where
+    [Ix; N]: IntoDimension<Dim = Dim<[Ix; N]>>,
+    Dim<[Ix; N]>: RemoveAxis,
+    T: NumAssign + FromPrimitive + Copy + 'a,
+    S: Data<Elem = T> + 'a,
+{
+    // Before we convert into the appropriate axis object, we have to check at runtime that the
+    // axis value specified is within -N <= axis < N.
+    if axis.is_some_and(|axis| {
+        !(if axis < 0 {
+            axis.unsigned_abs() <= N
+        } else {
+            axis.unsigned_abs() < N
+        })
+    }) {
+        return Err(Error::InvalidArg {
+            arg: "axis".into(),
+            reason: "index out of range.".into(),
+        });
+    }
+
+    // We make a best effort to convert into appropriate axis object.
+    let axis_inner: isize = axis.unwrap_or(-1);
+    if axis_inner >= 0 {
+        Ok((Axis(axis_inner as usize), axis_inner.unsigned_abs()))
+    } else {
+        let axis_inner = x
+            .ndim()
+            .checked_add_signed(axis_inner)
+            .expect("Invalid add to `axis` option");
+        Ok((Axis(axis_inner), axis_inner))
+    }
+}
+
 /// Filter data along one-dimension with an IIR or FIR filter.
 ///
 /// Filter a data sequence, `x`, using a digital filter.  This works for many
@@ -114,31 +157,7 @@ where
         unimplemented!()
     };
 
-    // Before we convert into the appropriate axis object, we have to check at runtime that the
-    // axis value specified is within -N <= axis < N.
-    if axis.is_some_and(|axis| {
-        !(if axis < 0 {
-            axis.unsigned_abs() <= N
-        } else {
-            axis.unsigned_abs() < N
-        })
-    }) {
-        return Err(Error::InvalidArg {
-            arg: "axis".into(),
-            reason: "index out of range.".into(),
-        });
-    }
-
-    // We make a best effort to convert into appropriate axis object.
-    let (axis, axis_inner): (Axis, usize) = {
-        let axis_inner: isize = axis.unwrap_or(-1);
-        if axis_inner >= 0 {
-            (Axis(axis_inner as usize), axis_inner as usize)
-        } else {
-            let axis_inner = (x.ndim() as isize + axis_inner) as usize;
-            (Axis(axis_inner), axis_inner)
-        }
-    };
+    let (axis, axis_inner) = check_and_get_axis(axis, &x)?;
 
     if a.is_empty() {
         return Err(Error::InvalidArg {

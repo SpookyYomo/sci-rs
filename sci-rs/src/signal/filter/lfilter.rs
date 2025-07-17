@@ -137,8 +137,8 @@ pub fn lfilter<'a, T, S, const N: usize>(
     a: ArrayView1<'a, T>,
     x: ArrayBase<S, Dim<[Ix; N]>>,
     axis: Option<isize>,
-    zi: Option<Vec<T>>,
-) -> Result<(Array<T, Dim<[Ix; N]>>, Option<Vec<T>>)>
+    zi: Option<ArrayView<T, Dim<[Ix; N]>>>,
+) -> Result<(Array<T, Dim<[Ix; N]>>, Option<Array<T, Dim<[Ix; N]>>>)>
 where
     [Ix; N]: IntoDimension<Dim = Dim<[Ix; N]>>,
     Dim<[Ix; N]>: RemoveAxis,
@@ -154,7 +154,7 @@ where
     }
 
     if a.len() > 1 {
-        unimplemented!()
+        return linear_filter(b, a, x, axis, zi);
     };
 
     let (axis, axis_inner) = check_and_get_axis(axis, &x)?;
@@ -204,6 +204,23 @@ where
         });
 
     Ok((out, None))
+}
+
+/// Internal function called by [lfilter] for situation a.len() > 1.
+fn linear_filter<'a, T, S, const N: usize>(
+    b: ArrayView1<'a, T>,
+    a: ArrayView1<'a, T>,
+    x: ArrayBase<S, Dim<[Ix; N]>>,
+    axis: Option<isize>,
+    zi: Option<ArrayView<T, Dim<[Ix; N]>>>,
+) -> Result<(Array<T, Dim<[Ix; N]>>, Option<Array<T, Dim<[Ix; N]>>>)>
+where
+    [Ix; N]: IntoDimension<Dim = Dim<[Ix; N]>>,
+    Dim<[Ix; N]>: RemoveAxis,
+    T: NumAssign + FromPrimitive + Copy + 'a,
+    S: Data<Elem = T> + 'a,
+{
+    todo!()
 }
 
 #[cfg(test)]

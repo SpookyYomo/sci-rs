@@ -7,13 +7,13 @@ use ndarray::{
 use num_traits::{FromPrimitive, Num, NumAssign};
 use sci_rs_core::{Error, Result};
 
-/// /// Internal function for obtaining length of all axis as array from input from input.
+/// Internal function for obtaining length of all axis as array from input from input.
 ///
 /// This is almost the same as `a.shape()`, but is a array [T; N] instead of a Vec<T>.
 ///
 /// # Parameters
 /// `a`: Array whose shape is needed as a slice.
-fn ndarray_ndim_as_array<'a, S, T, const N: usize>(a: &ArrayBase<S, Dim<[Ix; N]>>) -> [Ix; N]
+fn ndarray_shape_as_array<'a, S, T, const N: usize>(a: &ArrayBase<S, Dim<[Ix; N]>>) -> [Ix; N]
 where
     [Ix; N]: IntoDimension<Dim = Dim<[Ix; N]>>,
     Dim<[Ix; N]>: RemoveAxis,
@@ -172,26 +172,45 @@ where
             reason: "First element of a found to be zero.".into(),
         });
     }
-    let b: Array1<T> = b.mapv(|bi| bi / a[0]);
+    let b: Array1<T> = b.mapv(|bi| bi / a[0]); // b /= a[0]
 
-    let (out_dim, out_dim_inner): (Dim<_>, [Ix; N]) = {
-        let mut tmp: [Ix; N] = ndarray_ndim_as_array(&x);
+    let (out_full_dim, out_full_dim_inner): (Dim<_>, [Ix; N]) = {
+        let mut tmp: [Ix; N] = ndarray_shape_as_array(&x);
+        tmp[axis_inner] += b.len_of(Axis(0)) - 1; // From np.convolve(..., 'full')
+        (IntoDimension::into_dimension(tmp), tmp)
+    };
+
+    let mut out_full: Array<T, Dim<[Ix; N]>> = ArrayBase::zeros(out_full_dim);
+    out_full
+        .lanes_mut(axis)
+        .into_iter()
+        .zip(x.lanes(axis)) // Almost basically np.apply_along_axis
+        .for_each(|(mut out_full_slice, y)| {
+            // np.convolve uses full mode
+            // ```py
+            // out_full = np.apply_along_axis(lambda y: np.convolve(b, y), axis, x)
+            // ```
+            use sci_rs_core::num_rs::{convolve, ConvolveMode};
+            convolve(y, (&b).into(), ConvolveMode::Full)
+                .unwrap()
+                .assign_to(&mut out_full_slice);
+        });
+
+    let (out_dim, out_dim_inner) = {
+        let mut tmp: [Ix; N] = ndarray_shape_as_array(&x);
         (IntoDimension::into_dimension(tmp), tmp)
     };
     let mut out = ArrayBase::zeros(out_dim);
-
     out.lanes_mut(axis)
         .into_iter()
-        .zip(x.lanes(axis)) // Almost basically np.apply_along_axis
-        .for_each(|(mut out_slice, y)| {
-            // np.convolve uses full mode, but is eventually slices out with
+        .zip(out_full.lanes(axis))
+        .for_each(|(mut out_slice, out_full_slice)| {
             // ```py
-            // ind = out_full.ndim * [slice(None)] # creates the "[:, :, ..., :]" slicer
-            // ind[axis] = slice(out_full.shape[axis] - len(b) + 1) # [:out_full.shape[..] - len(b) + 1]
+            // # Create the [...; :out_full.shape[axis] - len(b) + 1; ...] at index=axis
+            // ind[axis] = slice(out_full.shape[axis] - len(b) + 1)
+            // out = out_full[tuple(ind)]
             // ```
-            use sci_rs_core::num_rs::{convolve, ConvolveMode};
-            let out_full = convolve(y, (&b).into(), ConvolveMode::Full).unwrap();
-            out_full
+            out_full_slice
                 .slice(
                     SliceInfo::try_from([SliceInfoElem::Slice {
                         start: 0,

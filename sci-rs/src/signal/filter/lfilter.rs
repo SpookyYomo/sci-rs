@@ -196,16 +196,15 @@ where
             .lanes_mut(axis)
             .into_iter()
             .zip(x.lanes(axis)) // Almost basically np.apply_along_axis
-            .for_each(|(mut out_full_slice, y)| {
+            .try_for_each(|(mut out_full_slice, y)| {
                 // np.convolve uses full mode by default
                 // ```py
                 // out_full = np.apply_along_axis(lambda y: np.convolve(b, y), axis, x)
                 // ```
                 use sci_rs_core::num_rs::{convolve, ConvolveMode};
-                convolve(y, (&b).into(), ConvolveMode::Full)
-                    .unwrap()
-                    .assign_to(&mut out_full_slice);
-            });
+                convolve(y, (&b).into(), ConvolveMode::Full)?.assign_to(&mut out_full_slice);
+                Ok(())
+            })?;
         {
             // ```py
             // ind[axis] = slice(zi.shape[axis])
@@ -251,14 +250,14 @@ where
         out.lanes_mut(axis)
             .into_iter()
             .zip(x.lanes(axis)) // Almost basically np.apply_along_axis
-            .for_each(|(mut out_slice, y)| {
+            .try_for_each(|(mut out_slice, y)| {
                 // np.convolve uses full mode, but is eventually slices out with
                 // ```py
                 // ind = out_full.ndim * [slice(None)] # creates the "[:, :, ..., :]" slice r
                 // ind[axis] = slice(out_full.shape[axis] - len(b) + 1) # [:out_full.shape[ ..] - len(b) + 1]
                 // ```
                 use sci_rs_core::num_rs::{convolve, ConvolveMode};
-                let out_full = convolve(y, (&b).into(), ConvolveMode::Full).unwrap();
+                let out_full = convolve(y, (&b).into(), ConvolveMode::Full)?;
                 out_full
                     .slice(
                         SliceInfo::try_from([SliceInfoElem::Slice {
@@ -269,7 +268,8 @@ where
                         .unwrap(),
                     )
                     .assign_to(&mut out_slice);
-            });
+                Ok(())
+            })?;
 
         Ok((out, None))
     }

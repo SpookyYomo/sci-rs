@@ -68,6 +68,94 @@ where
     }
 }
 
+/// Implement lfilter for fixed dimension of input array `x`.
+///
+/// Valid only from 1 to 6 dimensional arrays.
+pub trait LFilter<S, const N: usize>
+where
+    S: ndarray::RawData,
+{
+    /// Filter data `x` along one-dimension with an IIR or FIR filter.
+    ///
+    /// Filter a data sequence, `x`, using a digital filter.  This works for many
+    /// fundamental data types (including Object type).  The filter is a direct
+    /// form II transposed implementation of the standard difference equation
+    /// (see Notes).
+    ///
+    /// The function [super::sosfilt] (and filter design using ``output='sos'``) should be
+    /// preferred over `lfilter` for most filtering tasks, as second-order sections
+    /// have fewer numerical problems.
+    ///
+    /// ## Parameters
+    /// * `b` : array_like  
+    ///   The numerator coefficient vector in a 1-D sequence.
+    /// * `a` : array_like  
+    ///   The denominator coefficient vector in a 1-D sequence.  If ``a[0]``
+    ///   is not 1, then both `a` and `b` are normalized by ``a[0]``.
+    /// * `x` : array_like  
+    ///   An N-dimensional input array.
+    /// * `axis`: Option<isize>
+    ///   Default to `-1` if `None`.  
+    ///   Panics in accordance with [ndarray::ArrayBase::axis_iter].
+    /// * `zi`: array_like  
+    ///   Currently not implemented.  
+    ///   Initial conditions for filter delays. It is a vector
+    ///   (or array of vectors for an N-dimensional input) of length
+    ///   ``max(len(a), len(b)) - 1``.  If `zi` is None or is not given then
+    ///   initial rest is assumed.  See `lfiltic` and [super::lfilter_zi] for more information.
+    ///
+    /// ## Returns
+    /// * `y` : array  
+    ///   The output of the digital filter.
+    /// * `zf` : array, optional  
+    ///   If `zi` is None, this is not returned, otherwise, `zf` holds the
+    ///   final filter delay values.
+    ///
+    /// # See Also
+    /// * [super::lfilter_zi_dyn]  
+    ///
+    /// # Notes
+    /// For compile time reasons, lfilter is implemented per ArrayN at the moment.
+    ///
+    /// # Examples
+    /// On a 1-dimensional signal:
+    //// ```
+    //// use ndarray::{array, ArrayBase, Array1, ArrayView1, Dim, Ix, OwnedRepr};
+    //// use sci_rs::signal::filter::LFilter;
+    //// 
+    //// let b = array![5., 4., 1., 2.];
+    //// let a = array![1.];
+    //// let x = array![1., 2., 3., 4., 3., 5., 6.];
+    //// let expected = array![5., 14., 24., 36., 38., 47., 61.];
+    //// let (result, _) = ArrayView1::lfilter((&b).into(), (&a).into(), (&x).into(), None, None).unwrap(); // By ref
+    //// 
+    //// assert_eq!(result.len(), expected.len());
+    //// result.into_iter().zip(expected).for_each(|(r, e)| {
+    ////     assert_eq!(r, e);
+    //// });
+    //// 
+    //// let (result, _) = Array1::lfilter((&b).into(), (&a).into(), x, None, None).unwrap(); // By value
+    //// ```
+    ///
+    /// # Panics
+    /// Currently yet to implement for `zi = Some(...)`, nor for `a.len() > 1`.
+    /// Panics if axis is out or range.
+    // NOTE: zi's TypeSig inherits from lfilter's output, in accordance with examples section of
+    // documentation, both lfilter_zi and this should eventually support NDArray.
+    fn lfilter<'a, T>(
+        b: ArrayView1<'a, T>,
+        a: ArrayView1<'a, T>,
+        x: Self,
+        axis: Option<isize>,
+        zi: Option<ArrayView<T, Dim<[Ix; N]>>>,
+    ) -> Result<(Array<T, Dim<[Ix; N]>>, Option<Array<T, Dim<[Ix; N]>>>)>
+    where
+        [Ix; N]: IntoDimension<Dim = Dim<[Ix; N]>>,
+        Dim<[Ix; N]>: RemoveAxis,
+        T: NumAssign + FromPrimitive + Copy + 'a,
+        S: Data<Elem = T> + 'a;
+}
+
 /// Filter data along one-dimension with an IIR or FIR filter.
 ///
 /// Filter a data sequence, `x`, using a digital filter.  This works for many

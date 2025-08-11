@@ -2,7 +2,7 @@ use alloc::vec::Vec;
 use core::marker::Copy;
 use ndarray::{
     Array, Array1, ArrayBase, ArrayView, ArrayView1, ArrayViewMut1, Axis, Data, Dim, IntoDimension,
-    Ix, IxDyn, RemoveAxis, SliceInfo, SliceInfoElem,
+    Ix, IxDyn, RemoveAxis, ShapeBuilder, SliceInfo, SliceInfoElem,
 };
 use num_traits::{FromPrimitive, Num, NumAssign};
 use sci_rs_core::{Error, Result};
@@ -241,7 +241,9 @@ macro_rules! lfilter_for_dim {
                             tmp_heap?.try_into().unwrap()
                         };
 
-                        zi = todo!();
+                        zi = ArrayView::from_shape(expected_shape.strides(strides), zi.as_slice().unwrap())
+                            .unwrap()
+                            .to_owned();
                     };
 
                     let (out_full_dim, out_full_dim_inner): (Dim<_>, [Ix; $N]) = {
@@ -469,6 +471,92 @@ mod test {
                 (&a).into(),
                 x,
                 None,
+                Some((&zi).into()),
+            ) else {
+                panic!("Should not have errored")
+            };
+
+            assert_eq!(result.len(), expected.len());
+            result.into_iter().zip(expected).for_each(|(r, e)| {
+                assert_relative_eq!(r, e, max_relative = 1e-6);
+            });
+            assert_eq!(r_zi.len(), expected_zi.len());
+            r_zi.into_iter().zip(expected_zi).for_each(|(r, e)| {
+                assert_relative_eq!(r, e, max_relative = 1e-6);
+            })
+        }
+        {
+            // Case which does falls into zi.shape() != expected_shape branch
+            let b = array![5., 0.4, 1., -2.];
+            let a = array![1.];
+            let x = array![[1., 2., 3., 4., 3., 5., 6.], [8., 0., 1., 0., 3., 7., 6.]];
+            let zi = array![[0.4], [0.45], [0.05]];
+            let expected = array![
+                [5.4, 10.4, 15.4, 20.4, 15.4, 25.4, 30.4],
+                [40.85, 1.25, 6.65, 2.05, 16.65, 37.45, 32.85],
+            ];
+            let expected_zi = array![
+                [4.25, 2.05, 3.45, 4.05, 4.25, 7.85, 8.45],
+                [6., -4., -5., -8., -3., -3., -6.],
+                [-16., 0., -2., 0., -6., -14., -12.],
+            ];
+
+            let Ok((result, Some(r_zi))) = Array::<_, Dim<[Ix; 2]>>::lfilter(
+                (&b).into(),
+                (&a).into(),
+                x,
+                Some(0),
+                Some((&zi).into()),
+            ) else {
+                panic!("Should not have errored")
+            };
+
+            assert_eq!(result.len(), expected.len());
+            result.into_iter().zip(expected).for_each(|(r, e)| {
+                assert_relative_eq!(r, e, max_relative = 1e-6);
+            });
+            assert_eq!(r_zi.len(), expected_zi.len());
+            r_zi.into_iter().zip(expected_zi).for_each(|(r, e)| {
+                assert_relative_eq!(r, e, max_relative = 1e-6);
+            })
+        }
+        {
+            // Case which does falls into zi.shape() != expected_shape branch for 3D input
+            let b = array![5., 0.4, 1., -2.];
+            let a = array![1.];
+            let x = array![
+                [[0.2, 2., 3., 4., 3., 5., 6.], [8., 0., 1., 0., 3., 7., 6.]],
+                [[1., 2., 3., 4., 3., 5., 6.], [8., 0., 1., 0., 3., 7., 6.]]
+            ];
+            let zi = array![[[0.4], [0.45], [0.05]], [[0.6], [0.15], [0.25]]];
+            let expected = array![
+                [
+                    [1.4, 10.4, 15.4, 20.4, 15.4, 25.4, 30.4],
+                    [40.53, 1.25, 6.65, 2.05, 16.65, 37.45, 32.85]
+                ],
+                [
+                    [5.6, 10.6, 15.6, 20.6, 15.6, 25.6, 30.6],
+                    [40.55, 0.95, 6.35, 1.75, 16.35, 37.15, 32.55]
+                ]
+            ];
+            let expected_zi = array![
+                [
+                    [3.45, 2.05, 3.45, 4.05, 4.25, 7.85, 8.45],
+                    [7.6, -4., -5., -8., -3., -3., -6.],
+                    [-16., 0., -2., 0., -6., -14., -12.]
+                ],
+                [
+                    [4.45, 2.25, 3.65, 4.25, 4.45, 8.05, 8.65],
+                    [6., -4., -5., -8., -3., -3., -6.],
+                    [-16., 0., -2., 0., -6., -14., -12.]
+                ]
+            ];
+
+            let Ok((result, Some(r_zi))) = Array::<_, Dim<[Ix; 3]>>::lfilter(
+                (&b).into(),
+                (&a).into(),
+                x,
+                Some(1),
                 Some((&zi).into()),
             ) else {
                 panic!("Should not have errored")

@@ -82,7 +82,7 @@ where
     /// form II transposed implementation of the standard difference equation
     /// (see Notes).
     ///
-    /// The function [super::sosfilt] (and filter design using ``output='sos'``) should be
+    /// The function [super::sosfilt_dyn] (and filter design using ``output='sos'``) should be
     /// preferred over `lfilter` for most filtering tasks, as second-order sections
     /// have fewer numerical problems.
     ///
@@ -94,7 +94,7 @@ where
     ///   is not 1, then both `a` and `b` are normalized by ``a[0]``.
     /// * `x` : array_like  
     ///   An N-dimensional input array.
-    /// * `axis`: Option<isize>
+    /// * `axis`: `Option<isize>`
     ///   Default to `-1` if `None`.  
     ///   Panics in accordance with [ndarray::ArrayBase::axis_iter].
     /// * `zi`: array_like  
@@ -102,7 +102,7 @@ where
     ///   Initial conditions for filter delays. It is a vector
     ///   (or array of vectors for an N-dimensional input) of length
     ///   ``max(len(a), len(b)) - 1``.  If `zi` is None or is not given then
-    ///   initial rest is assumed.  See `lfiltic` and [super::lfilter_zi] for more information.
+    ///   initial rest is assumed.  See `lfiltic` and [super::lfilter_zi_dyn] for more information.
     ///
     /// ## Returns
     /// * `y` : array  
@@ -138,8 +138,7 @@ where
     /// ```
     ///
     /// # Panics
-    /// Currently yet to implement for `zi = Some(...)`, nor for `a.len() > 1`.
-    /// Panics if axis is out or range.
+    /// Currently yet to implement for `a.len() > 1`.
     // NOTE: zi's TypeSig inherits from lfilter's output, in accordance with examples section of
     // documentation, both lfilter_zi and this should eventually support NDArray.
     fn lfilter<'a, T>(

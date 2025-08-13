@@ -9,20 +9,17 @@ use alloc::vec;
 #[cfg(feature = "alloc")]
 use alloc::vec::Vec;
 
+/// Construct initial conditions for [lfilter][super::lfilter::LFilter] for step response
+/// steady-state.
 ///
-/// Construct initial conditions for lfilter for step response steady-state.
-///
-/// Compute an initial state `zi` for the `lfilter` function that corresponds
-/// to the steady state of the step response.
+/// Compute an initial state `zi` for the `lfilter` function that corresponds to the steady state
+/// of the step response.
 ///
 /// A typical use of this function is to set the initial state so that the
 /// output of the filter starts at the same value as the first element of
 /// the signal to be filtered.
 ///
-///
 /// <https://docs.scipy.org/doc/scipy/reference/generated/scipy.signal.lfilter_zi.html#scipy.signal.lfilter_zi>
-///
-///
 #[inline]
 pub fn lfilter_zi_dyn<F>(b: &[F], a: &[F]) -> Vec<F>
 where
@@ -38,7 +35,7 @@ where
         .expect("There must be at least one nonzero `a` coefficient.")
         .0;
 
-    // Mormalize to a[0] == 1
+    // Normalize to a[0] == 1
     let mut a = a.iter().skip(ai0).cloned().collect::<Vec<_>>();
     let mut b = b.to_vec();
     let a0 = a[0];

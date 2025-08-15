@@ -195,10 +195,10 @@ macro_rules! lfilter_for_dim {
                 }
                 let b: Array1<T> = b.mapv(|bi| bi / a[0]); // b /= a[0]
 
-                if let Some(zi) = zi {
+                if let Some(zii) = zi {
                     // Use a separate branch to avoid unnecessary heap allocation of `out_full` in `zi` = None
                     // case.
-                    let mut zi = zi.to_owned();
+                    let mut zi = zii.reborrow();
 
                     // if zi.ndim != x.ndim { return Err(...) } is signature asserted.
 
@@ -240,9 +240,8 @@ macro_rules! lfilter_for_dim {
                             tmp_heap?.try_into().unwrap()
                         };
 
-                        zi = ArrayView::from_shape(expected_shape.strides(strides), zi.as_slice().unwrap())
-                            .unwrap()
-                            .to_owned();
+                        zi = ArrayView::from_shape(expected_shape.strides(strides), zii.as_slice().unwrap())
+                            .unwrap();
                     };
 
                     let (out_full_dim, out_full_dim_inner): (Dim<_>, [Ix; $N]) = {

@@ -1,5 +1,6 @@
 use core::{iter::Sum, ops::SubAssign};
 use nalgebra::{DMatrix, OMatrix, RealField, SMatrix, Scalar};
+use ndarray::Array1;
 use num_traits::{Float, One, Zero};
 
 use crate::linalg::companion_dyn;
@@ -21,7 +22,7 @@ use alloc::vec::Vec;
 ///
 /// <https://docs.scipy.org/doc/scipy/reference/generated/scipy.signal.lfilter_zi.html#scipy.signal.lfilter_zi>
 #[inline]
-pub fn lfilter_zi_dyn<F>(b: &[F], a: &[F]) -> Vec<F>
+pub fn lfilter_zi_dyn<F>(b: &[F], a: &[F]) -> Array1<F>
 where
     F: RealField + Copy + PartialEq + Scalar + Zero + One + Sum + SubAssign,
 {
@@ -76,7 +77,7 @@ where
         }
     }
 
-    zi
+    zi.into()
 }
 
 #[cfg(test)]

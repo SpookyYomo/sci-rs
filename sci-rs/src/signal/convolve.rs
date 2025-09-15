@@ -157,10 +157,10 @@ mod tests {
 
     #[test]
     fn test_convolve_valid() {
-        let in1 = vec![1.0, 2.0, 3.0, 4.0];
-        let in2 = vec![1.0, 2.0];
+        let in1 = vec![1.0, 2.0, 5.0, 7.0];
+        let in2 = vec![1.4, 2.2];
         let result: Array<f64, Dim<[Ix; 1]>> = convolve(&in1, &in2, ConvolveMode::Valid);
-        let expected: Array<f64, Dim<[Ix; 1]>> = vec![4.0, 7.0, 10.0].into();
+        let expected: Array<f64, Dim<[Ix; 1]>> = vec![5.0, 11.4, 20.8].into();
         for (a, b) in result.iter().zip(expected.iter()) {
             assert_relative_eq!(a, b, epsilon = 1e-10);
         }
@@ -169,9 +169,9 @@ mod tests {
     #[test]
     fn test_convolve_same() {
         let in1 = vec![1.0, 2.0, 3.0, 4.0];
-        let in2 = vec![1.0, 2.0, 1.0];
+        let in2 = vec![1.0, 2.0, 1.5];
         let result: Array<f64, Dim<[Ix; 1]>> = convolve(&in1, &in2, ConvolveMode::Same);
-        let expected: Array<f64, Dim<[Ix; 1]>> = vec![4.0, 8.0, 12.0, 11.0].into();
+        let expected: Array<f64, Dim<[Ix; 1]>> = vec![4.0, 8.5, 13.0, 12.5].into();
         for (a, b) in result.iter().zip(expected.iter()) {
             assert_relative_eq!(a, b, epsilon = 1e-10);
         }

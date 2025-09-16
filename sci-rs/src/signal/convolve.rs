@@ -1,5 +1,6 @@
 use ndarray::{
-    Array, ArrayView, Data, Dim, IntoDimension, Ix, RemoveAxis, SliceArg, SliceInfo, SliceInfoElem,
+    Array, ArrayBase, ArrayView, Data, Dim, IntoDimension, Ix, RemoveAxis, SliceArg, SliceInfo,
+    SliceInfoElem,
 };
 use ndarray_conv::{ConvFFTExt, ConvMode};
 use num_traits::NumAssign;
@@ -99,38 +100,38 @@ where
 /// * `in2` - Second input array
 ///
 /// # Returns
-/// A Vec containing the cross-correlation of `in1` with `in2`.
+/// An array containing the cross-correlation of `in1` with `in2`.
 /// With Full mode, the output length will be `in1.len() + in2.len() - 1`.
-pub fn correlate<'a, T, const N: usize>(
-    in1: impl Into<ArrayView<'a, T, Dim<[Ix; N]>>>,
-    in2: impl Into<ArrayView<'a, T, Dim<[Ix; N]>>>,
+pub fn correlate<'a, T, S, const N: usize>(
+    in1: ArrayBase<S, Dim<[Ix; N]>>,
+    in2: ArrayBase<S, Dim<[Ix; N]>>,
     mode: ConvolveMode,
 ) -> Array<T, Dim<[Ix; N]>>
 where
     T: NumAssign + FftNum,
+    S: Data<Elem = T> + 'a,
     [Ix; N]: IntoDimension<Dim = Dim<[Ix; N]>>,
     Dim<[Ix; N]>: RemoveAxis,
     SliceInfo<[SliceInfoElem; N], Dim<[Ix; N]>, Dim<[Ix; N]>>:
         SliceArg<Dim<[Ix; N]>, OutDim = Dim<[Ix; N]>>,
 {
-    in1.into()
-        .conv_fft(
-            &in2.into().t(),
-            match mode {
-                ConvolveMode::Full => ConvMode::Full,
-                ConvolveMode::Valid => ConvMode::Valid,
-                ConvolveMode::Same => ConvMode::Same,
-            },
-            ndarray_conv::PaddingMode::Zeros,
-        )
-        .unwrap() // TODO: Result type from core
+    in1.conv_fft(
+        &in2.t(),
+        match mode {
+            ConvolveMode::Full => ConvMode::Full,
+            ConvolveMode::Valid => ConvMode::Valid,
+            ConvolveMode::Same => ConvMode::Same,
+        },
+        ndarray_conv::PaddingMode::Zeros,
+    )
+    .unwrap() // TODO: Result type from core
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
     use approx::assert_relative_eq;
-    use ndarray::array;
+    use ndarray::{array, Array1, ArrayView1};
 
     #[test]
     fn test_convolve_full() {
@@ -146,10 +147,21 @@ mod tests {
 
     #[test]
     fn test_correlate_full() {
-        let in1 = vec![1.0, 2.0, 3.0];
-        let in2 = vec![4.0, 5.0, 6.0];
-        let result: Array<f64, Dim<[Ix; 1]>> = correlate(&in1, &in2, ConvolveMode::Full);
-        let expected: Array<f64, Dim<[Ix; 1]>> = vec![6.0, 17.0, 32.0, 23.0, 12.0].into();
+        let in1 = array![1.0, 2.0, 3.0];
+        let in2 = array![4.0, 5.0, 6.0];
+
+        {
+            let in1_ref: ArrayView1<_> = (&in1).into();
+            let in2_ref: ArrayView1<_> = (&in2).into();
+            let result: Array<f64, Dim<[Ix; 1]>> = correlate(in1_ref, in2_ref, ConvolveMode::Full);
+            let expected: Array<f64, Dim<[Ix; 1]>> = vec![6.0, 17.0, 32.0, 23.0, 12.0].into();
+            for (a, b) in result.iter().zip(expected.iter()) {
+                assert_relative_eq!(a, b, epsilon = 1e-10);
+            }
+        }
+
+        let result: Array1<_> = correlate(in1, in2, ConvolveMode::Full);
+        let expected: Array1<_> = array![6.0, 17.0, 32.0, 23.0, 12.0];
         for (a, b) in result.iter().zip(expected.iter()) {
             assert_relative_eq!(a, b, epsilon = 1e-10);
         }
@@ -186,9 +198,10 @@ mod tests {
         // Generate 1000 random samples from standard normal distribution
         let mut rng = thread_rng();
         let sig: Vec<f64> = Standard.sample_iter(&mut rng).take(1000).collect();
+        let sig_ref: ArrayView1<_> = (&sig).into();
 
         // Compute autocorrelation using correlate directly
-        let autocorr = correlate(&sig, &sig, ConvolveMode::Full);
+        let autocorr = correlate(sig_ref, sig_ref, ConvolveMode::Full);
 
         // Basic sanity checks
         assert_eq!(autocorr.len(), 1999); // Full convolution length should be 2N-1

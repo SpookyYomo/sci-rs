@@ -31,13 +31,14 @@ pub enum ConvolveMode {
 /// For [ConvolveMode::Full] mode, the output length will be `in1.shape() "+" in2.shape() "-" 1`.
 /// For [ConvolveMode::Valid] mode, the output length will be `max(in1.shape(), + in2.shape())`.
 /// For [ConvolveMode::Same] mode, the output length will be `in1.shape()`.
-pub fn fftconvolve<'a, T, const N: usize>(
-    in1: impl Into<ArrayView<'a, T, Dim<[Ix; N]>>>,
-    in2: impl Into<ArrayView<'a, T, Dim<[Ix; N]>>>,
+pub fn fftconvolve<'a, T, S, const N: usize>(
+    in1: ArrayBase<S, Dim<[Ix; N]>>,
+    in2: ArrayBase<S, Dim<[Ix; N]>>,
     mode: ConvolveMode,
 ) -> Array<T, Dim<[Ix; N]>>
 where
     T: NumAssign + FftNum,
+    S: Data<Elem = T> + 'a,
     [Ix; N]: IntoDimension<Dim = Dim<[Ix; N]>>,
     Dim<[Ix; N]>: RemoveAxis,
     SliceInfo<[SliceInfoElem; N], Dim<[Ix; N]>, Dim<[Ix; N]>>:
@@ -51,12 +52,7 @@ where
             todo!()
         }
         ConvolveMode::Same => {
-            in1.into()
-                .conv_fft(
-                    &in2.into(),
-                    ConvMode::Same,
-                    ndarray_conv::PaddingMode::Zeros,
-                )
+            in1.conv_fft(&in2, ConvMode::Same, ndarray_conv::PaddingMode::Zeros)
                 .unwrap() // TODO: Result type from core
         }
     }
@@ -65,7 +61,7 @@ where
 /// Compute the convolution of two signals using FFT.
 ///
 /// # Arguments
-/// - `in1`: First input signal by reference. Can be `[std::vec::Vec]` or `[ndarray::Array]`.
+/// - `in1`: First input signal by reference. Can be `[ndarray::Array]`.
 /// - `in2`: Second input signal by reference. (Same type and dimensions as `in1`.)
 /// - `mode`: [ConvolveMode]
 ///
@@ -74,20 +70,24 @@ where
 /// For [ConvolveMode::Full] mode, the output length will be `in1.shape() "+" in2.shape() "-" 1`.
 /// For [ConvolveMode::Valid] mode, the output length will be `max(in1.shape(), + in2.shape())`.
 /// For [ConvolveMode::Same] mode, the output length will be `in1.shape()`.
+///
+/// # Note
+/// Automatic choice between convolution through direct summation or via FFT has yet to be done
 #[inline]
-pub fn convolve<'a, T, const N: usize>(
-    in1: impl Into<ArrayView<'a, T, Dim<[Ix; N]>>>,
-    in2: impl Into<ArrayView<'a, T, Dim<[Ix; N]>>>,
+pub fn convolve<'a, T, S, const N: usize>(
+    in1: ArrayBase<S, Dim<[Ix; N]>>,
+    in2: ArrayBase<S, Dim<[Ix; N]>>,
     mode: ConvolveMode,
 ) -> Array<T, Dim<[Ix; N]>>
 where
     T: NumAssign + FftNum,
+    S: Data<Elem = T> + 'a,
     [Ix; N]: IntoDimension<Dim = Dim<[Ix; N]>>,
     Dim<[Ix; N]>: RemoveAxis,
     SliceInfo<[SliceInfoElem; N], Dim<[Ix; N]>, Dim<[Ix; N]>>:
         SliceArg<Dim<[Ix; N]>, OutDim = Dim<[Ix; N]>>,
 {
-    fftconvolve(&in1.into(), &in2.into(), mode)
+    fftconvolve(in1, in2, mode)
 }
 
 /// Compute the cross-correlation of two signals using FFT.
@@ -135,10 +135,10 @@ mod tests {
 
     #[test]
     fn test_convolve_full() {
-        let in1 = vec![1.0, 2.0, 3.0];
-        let in2 = vec![4.0, 5.0, 6.0];
-        let result: Array<f64, Dim<[Ix; 1]>> = convolve(&in1, &in2, ConvolveMode::Full);
-        let expected: Array<f64, Dim<[Ix; 1]>> = vec![4.0, 13.0, 28.0, 27.0, 18.0].into();
+        let in1 = array![1.0, 2.0, 3.0];
+        let in2 = array![4.0, 5.0, 6.0];
+        let result: Array1<_> = convolve(in1, in2, ConvolveMode::Full);
+        let expected: Array1<_> = vec![4.0, 13.0, 28.0, 27.0, 18.0].into();
 
         for (a, b) in result.iter().zip(expected.iter()) {
             assert_relative_eq!(a, b, epsilon = 1e-10);
@@ -169,10 +169,10 @@ mod tests {
 
     #[test]
     fn test_convolve_valid() {
-        let in1 = vec![1.0, 2.0, 5.0, 7.0];
-        let in2 = vec![1.4, 2.2];
-        let result: Array<f64, Dim<[Ix; 1]>> = convolve(&in1, &in2, ConvolveMode::Valid);
-        let expected: Array<f64, Dim<[Ix; 1]>> = vec![5.0, 11.4, 20.8].into();
+        let in1 = array![1.0, 2.0, 5.0, 7.0];
+        let in2 = array![1.4, 2.2];
+        let result: Array1<_> = convolve(in1, in2, ConvolveMode::Valid);
+        let expected: Array1<_> = array![5.0, 11.4, 20.8];
         for (a, b) in result.iter().zip(expected.iter()) {
             assert_relative_eq!(a, b, epsilon = 1e-10);
         }
@@ -180,10 +180,10 @@ mod tests {
 
     #[test]
     fn test_convolve_same() {
-        let in1 = vec![1.0, 2.0, 3.0, 4.0];
-        let in2 = vec![1.0, 2.0, 1.5];
-        let result: Array<f64, Dim<[Ix; 1]>> = convolve(&in1, &in2, ConvolveMode::Same);
-        let expected: Array<f64, Dim<[Ix; 1]>> = vec![4.0, 8.5, 13.0, 12.5].into();
+        let in1 = array![1.0, 2.0, 3.0, 4.0];
+        let in2 = array![1.0, 2.0, 1.5];
+        let result: Array1<_> = convolve(in1, in2, ConvolveMode::Same);
+        let expected: Array1<_> = array![4.0, 8.5, 13.0, 12.5];
         for (a, b) in result.iter().zip(expected.iter()) {
             assert_relative_eq!(a, b, epsilon = 1e-10);
         }

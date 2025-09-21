@@ -87,22 +87,18 @@ mod tests {
         // Resample each to length 100
         // Check that each resampled vector is length 100
 
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng();
         for i in (0..100) {
-            let len = rng.gen_range((10..50));
-            let x = (0..len)
-                .map(|_| rng.gen_range((-100.0..100.)))
-                .collect::<Vec<_>>();
+            let len = rng.random_range(10..50);
+            let x: Vec<_> = (0..len).map(|_| rng.random_range(-100.0..100.)).collect();
             let y = resample(&x, 100);
             assert_eq!(y.len(), 100);
         }
 
         for i in (0..50) {
-            let len = rng.gen_range((200..10000));
-            let target_len = rng.gen_range((50..50000));
-            let x = (0..len)
-                .map(|_| rng.gen_range((-100.0..100.)))
-                .collect::<Vec<_>>();
+            let len = rng.random_range(200..10000);
+            let target_len = rng.random_range(50..50000);
+            let x: Vec<_> = (0..len).map(|_| rng.random_range(-100.0..100.)).collect();
             let y = resample(&x, target_len);
             assert_eq!(y.len(), target_len);
         }

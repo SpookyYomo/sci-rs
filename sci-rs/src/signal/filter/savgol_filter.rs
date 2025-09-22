@@ -32,7 +32,7 @@ where
     YI: Iterator,
     YI::Item: Borrow<F>,
 {
-    if window_length % 2 == 0 {
+    if window_length.is_multiple_of(2) {
         panic!("window_length must be odd")
     }
 

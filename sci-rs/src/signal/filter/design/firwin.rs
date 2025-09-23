@@ -30,6 +30,12 @@ fn firwin_dyn_validate<F: Real + PartialOrd, W: Real>(
             reason: "At least one cutoff frequency must be given.".into(),
         });
     }
+    if *numtaps == 0 {
+        return Err(Error::InvalidArg {
+            arg: "numtaps".into(),
+            reason: "Invalid numtaps: Nonzero-numtaps is expected!".into(),
+        });
+    }
 
     // Whilst it may be faster to write
     // if *cutoff.iter().min().unwrap() <= F::zero() || *cutoff.iter().max().unwrap() >= F::one() {
@@ -625,6 +631,26 @@ mod test {
             );
         }
         {
+            // numtaps = 0 has ValueError in Python
+            let cutoff: Vec<f64> = vec![0.2, 0.2];
+            let decreasing_cutoff: Result<Vec<f64>, E> = firwin_dyn(
+                0,
+                &cutoff,
+                None,
+                None::<&Hamming>,
+                &FilterBandType::Bandpass,
+                None,
+                None,
+            );
+            assert_eq!(
+                decreasing_cutoff.unwrap_err(),
+                E::InvalidArg {
+                    arg: "numtaps".into(),
+                    reason: "Invalid numtaps: Nonzero-numtaps is expected!".into()
+                }
+            );
+        }
+        {
             // Lowpass
             let cutoff: Vec<f64> = vec![0.2, 0.7];
             let lowpass_invalid_cutoff: Result<Vec<f64>, E> = firwin_dyn(
@@ -746,7 +772,7 @@ mod test {
                 conflicting.unwrap_err(),
                 E::InvalidArg {
                     arg: "cutoff".into(),
-                    reason: "Setting both window and with to something is silently ignored only in Scipy."
+                    reason: "Setting both window and width to something is silently ignored only in Scipy."
                         .into()
                 }
             );

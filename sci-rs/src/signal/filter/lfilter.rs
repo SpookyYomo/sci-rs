@@ -9,7 +9,7 @@ use sci_rs_core::{Error, Result};
 
 /// Internal function for obtaining length of all axis as array from input from input.
 ///
-/// This is almost the same as `a.shape()`, but is a array [T; N] instead of a Vec<T>.
+/// This is almost the same as `a.shape()`, but is a array `[T; N]` instead of a `Vec<T>`.
 ///
 /// # Parameters
 /// `a`: Array whose shape is needed as a slice.
@@ -377,7 +377,7 @@ macro_rules! lfilter_for_dim {
     };
 }
 
-/// Internal function called by [lfilter] for situation a.len() > 1.
+/// Internal function called by [LFilter::lfilter] for situation a.len() > 1.
 fn linear_filter<'a, T, S, const N: usize>(
     b: ArrayView1<'a, T>,
     a: ArrayView1<'a, T>,

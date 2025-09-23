@@ -227,7 +227,7 @@ fn _sosfilt32(y: &[f32], sos: &mut [Sos32], z: &mut [f32]) {
         return;
     }
     const TILE: usize = 4;
-    match (sos.len(), y.len() % TILE == 0) {
+    match (sos.len(), y.len().is_multiple_of(TILE)) {
         (2, true) => {
             let rem = y.len() % TILE;
             y.chunks_exact(TILE)
@@ -322,7 +322,7 @@ fn _sosfilt_isize_32<I: Copy + Into<isize>>(y: &[I], sos: &mut [Sos32], z: &mut 
         return;
     }
     const TILE: usize = 4;
-    match (sos.len(), y.len() % TILE == 0) {
+    match (sos.len(), y.len().is_multiple_of(TILE)) {
         (2, true) => {
             let rem = y.len() % TILE;
             y.chunks_exact(TILE)

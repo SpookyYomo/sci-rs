@@ -205,4 +205,16 @@ mod tests {
             // }
         }
     }
+
+    #[test]
+    #[cfg(feature = "std")]
+    fn from_macro() {
+        use crate::get_window;
+
+        let actual = get_window!("triangle", 8);
+        assert_eq!(
+            vec![0.125, 0.375, 0.625, 0.875, 0.875, 0.625, 0.375, 0.125],
+            actual
+        );
+    }
 }

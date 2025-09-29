@@ -27,7 +27,7 @@ pub use sosfilt::*;
 #[cfg(feature = "alloc")]
 mod arraytools;
 #[cfg(feature = "alloc")]
-use lfilter::*;
+use arraytools::*;
 
 #[cfg(feature = "alloc")]
 mod lfilter;

@@ -135,11 +135,11 @@ pub fn axis_slice<A, S, D>(
     end: Option<isize>,
     step: Option<isize>,
     axis: Option<isize>,
-) -> Result<ArrayView<'_, A, <SliceInfo<Vec<SliceInfoElem>, D, D> as SliceArg<D>>::OutDim>>
+) -> Result<ArrayView<'_, A, D>>
 where
     S: Data<Elem = A>,
     D: Dimension,
-    SliceInfo<Vec<SliceInfoElem>, D, D>: SliceArg<D>,
+    SliceInfo<Vec<SliceInfoElem>, D, D>: SliceArg<D, OutDim = D>,
 {
     if D::NDIM.is_none() {
         return Err(Error::InvalidArg {

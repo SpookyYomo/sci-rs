@@ -141,22 +141,15 @@ where
     D: Dimension,
     SliceInfo<Vec<SliceInfoElem>, D, D>: SliceArg<D, OutDim = D>,
 {
-    if D::NDIM.is_none() {
-        return Err(Error::InvalidArg {
-            arg: 'a'.into(),
-            reason: "IxDyn array is not supported".into(),
-        });
-    }
-    #[allow(non_snake_case)]
-    let N = D::NDIM.unwrap();
+    let ndim = D::NDIM.unwrap_or(a.ndim());
 
     // Axis object and its corresponding usize internal.
     let (axis, axis_inner) = {
         if axis.is_some_and(|axis| {
             !(if axis < 0 {
-                axis.unsigned_abs() <= D::NDIM.unwrap()
+                axis.unsigned_abs() <= ndim
             } else {
-                axis.unsigned_abs() < D::NDIM.unwrap()
+                axis.unsigned_abs() < ndim
             })
         }) {
             return Err(Error::InvalidArg {
@@ -185,7 +178,7 @@ where
                 end: None,
                 step: 1,
             };
-            N
+            ndim
         ];
         tmp[axis_inner] = SliceInfoElem::Slice {
             start: start.unwrap_or(0),

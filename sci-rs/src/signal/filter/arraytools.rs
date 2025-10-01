@@ -203,8 +203,9 @@ where
 #[cfg(test)]
 mod test {
     use super::*;
-    use ndarray::array;
+    use ndarray::{array, Array, ArrayD, IxDyn};
 
+    /// Tests on IxN arrays.
     #[test]
     fn axis_slice_doc() {
         let a = array![[1, 2, 3], [4, 5, 6], [7, 8, 9]];
@@ -212,6 +213,34 @@ mod test {
         assert_eq!(
             axis_slice(&a, Some(0), Some(1), Some(1), Some(1)).unwrap(),
             array![[1], [4], [7]]
+        );
+        assert_eq!(
+            axis_slice(&a, Some(0), Some(2), Some(1), Some(0)).unwrap(),
+            array![[1, 2, 3], [4, 5, 6]]
+        );
+    }
+
+    /// Test on IxDyn Arrays.
+    #[test]
+    fn axis_slice_doc_dyn() {
+        let a = {
+            let mut y: Array<_, IxDyn> = ArrayD::<i64>::zeros(IxDyn(&[2, 3]));
+            y[[0, 0]] = 5;
+            y[[0, 1]] = 6;
+            y[[0, 2]] = 7;
+            y[[1, 0]] = 1;
+            y[[1, 1]] = 2;
+            y[[1, 2]] = 3;
+
+            y
+        };
+
+        assert_eq!(
+            axis_slice(&a, Some(0), Some(1), Some(1), Some(1))
+                .unwrap()
+                .into_dimensionality()
+                .unwrap(),
+            array![[5], [1]]
         );
     }
 }

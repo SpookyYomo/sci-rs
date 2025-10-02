@@ -1,8 +1,9 @@
 use alloc::vec::Vec;
 use core::marker::Copy;
 use ndarray::{
-    Array, Array1, ArrayBase, ArrayView, ArrayView1, ArrayViewMut1, Axis, Data, Dim, IntoDimension,
-    Ix, IxDyn, RemoveAxis, ShapeBuilder, SliceInfo, SliceInfoElem,
+    Array, Array1, ArrayBase, ArrayD, ArrayView, ArrayView1, ArrayViewMut1, Axis, Data, Dim,
+    Dimension, IntoDimension, Ix, IxDyn, RemoveAxis, ShapeBuilder, SliceArg, SliceInfo,
+    SliceInfoElem,
 };
 use num_traits::{FromPrimitive, Num, NumAssign};
 use sci_rs_core::{Error, Result};
@@ -30,7 +31,7 @@ where
 /// # Parameters
 /// axis: The user-specificed axis which filter is to be applied on.
 /// x: The input-data whose axis object that will be manipulated against.
-fn check_and_get_axis<'a, T, S, const N: usize>(
+fn check_and_get_axis_st<'a, T, S, const N: usize>(
     axis: Option<isize>,
     x: &ArrayBase<S, Dim<[Ix; N]>>,
 ) -> Result<(Axis, usize)>
@@ -178,7 +179,7 @@ macro_rules! lfilter_for_dim {
                     return linear_filter(b, a, x, axis, zi);
                 };
 
-                let (axis, axis_inner) = check_and_get_axis(axis, &x)?;
+                let (axis, axis_inner) = check_and_get_axis_st(axis, &x)?;
 
                 if a.is_empty() {
                     return Err(Error::InvalidArg {
@@ -377,29 +378,28 @@ macro_rules! lfilter_for_dim {
     };
 }
 
-/// Internal function called by [LFilter::lfilter] for situation a.len() > 1.
-fn linear_filter<'a, T, S, const N: usize>(
-    b: ArrayView1<'a, T>,
-    a: ArrayView1<'a, T>,
-    x: ArrayBase<S, Dim<[Ix; N]>>,
-    axis: Option<isize>,
-    zi: Option<ArrayView<T, Dim<[Ix; N]>>>,
-) -> Result<(Array<T, Dim<[Ix; N]>>, Option<Array<T, Dim<[Ix; N]>>>)>
-where
-    [Ix; N]: IntoDimension<Dim = Dim<[Ix; N]>>,
-    Dim<[Ix; N]>: RemoveAxis,
-    T: NumAssign + FromPrimitive + Copy + 'a,
-    S: Data<Elem = T> + 'a,
-{
-    todo!()
-}
-
 lfilter_for_dim!(1);
 lfilter_for_dim!(2);
 lfilter_for_dim!(3);
 lfilter_for_dim!(4);
 lfilter_for_dim!(5);
 lfilter_for_dim!(6);
+
+/// Internal function called by [LFilter::lfilter] for situation a.len() > 1.
+fn linear_filter<'a, T, S, D>(
+    b: ArrayView1<'a, T>,
+    a: ArrayView1<'a, T>,
+    x: ArrayBase<S, D>,
+    axis: Option<isize>,
+    zi: Option<ArrayView<T, D>>,
+) -> Result<(Array<T, D>, Option<Array<T, D>>)>
+where
+    D: Dimension + RemoveAxis,
+    T: NumAssign + FromPrimitive + Copy + 'a,
+    S: Data<Elem = T> + 'a,
+{
+    todo!()
+}
 
 #[cfg(test)]
 mod test {

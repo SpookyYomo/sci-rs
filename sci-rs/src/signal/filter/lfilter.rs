@@ -1,4 +1,4 @@
-use alloc::vec::Vec;
+use alloc::{vec, vec::Vec};
 use core::marker::Copy;
 use ndarray::{
     Array, Array1, ArrayBase, ArrayD, ArrayView, ArrayView1, ArrayViewMut1, Axis, Data, Dim,
@@ -385,6 +385,337 @@ lfilter_for_dim!(4);
 lfilter_for_dim!(5);
 lfilter_for_dim!(6);
 
+/// Filter data `x` along one-dimension with an IIR or FIR filter.
+///
+/// Filter a data sequence, `x`, using a digital filter.  This works for many
+/// fundamental data types (including Object type).  The filter is a direct
+/// form II transposed implementation of the standard difference equation
+/// (see Notes).
+///
+/// The function [super::sosfilt_dyn] (and filter design using ``output='sos'``) should be
+/// preferred over `lfilter` for most filtering tasks, as second-order sections
+/// have fewer numerical problems.
+///
+/// ## Parameters
+/// * `b` : array_like  
+///   The numerator coefficient vector in a 1-D sequence.
+/// * `a` : array_like  
+///   The denominator coefficient vector in a 1-D sequence.  If ``a[0]``
+///   is not 1, then both `a` and `b` are normalized by ``a[0]``.
+/// * `x` : array_like  
+///   An N-dimensional input array.
+/// * `axis`: `Option<isize>`
+///   Default to `-1` if `None`.  
+///   Panics in accordance with [ndarray::ArrayBase::axis_iter].
+/// * `zi`: array_like  
+///   Currently not implemented.  
+///   Initial conditions for filter delays. It is a vector
+///   (or array of vectors for an N-dimensional input) of length
+///   ``max(len(a), len(b)) - 1``.  If `zi` is None or is not given then
+///   initial rest is assumed.  See `lfiltic` and [super::lfilter_zi_dyn] for more information.
+///
+/// ## Returns
+/// * `y` : array  
+///   The output of the digital filter.
+/// * `zf` : array, optional  
+///   If `zi` is None, this is not returned, otherwise, `zf` holds the
+///   final filter delay values.
+///
+/// # See Also
+/// * [super::lfilter_zi_dyn]  
+///
+/// # Notes
+/// If Array<_, IxDyn as provided by this function is not desired, consider using [LFilter].
+///
+/// # Examples
+/// On a 1-dimensional signal:
+/// ```
+/// use ndarray::{array, ArrayBase, Array1, ArrayView1, Dim, Ix, OwnedRepr};
+/// use sci_rs::signal::filter::lfilter;
+///
+/// let b = array![5., 4., 1., 2.];
+/// let a = array![1.];
+/// let x = array![1., 2., 3., 4., 3., 5., 6.];
+/// let expected = array![5., 14., 24., 36., 38., 47., 61.];
+/// let (result, _) = lfilter((&b).into(), (&a).into(), x.view(), None, None).unwrap(); // By ref
+///
+/// assert_eq!(result.len(), expected.len());
+/// result.into_iter().zip(expected).for_each(|(r, e)| {
+///     assert_eq!(r, e);
+/// });
+///
+/// let (result, _) = lfilter((&b).into(), (&a).into(), x.clone().into_dyn(), None, None).unwrap(); // Dynamic arrays
+/// let (result, _) = lfilter((&b).into(), (&a).into(), x, None, None).unwrap(); // By value
+/// ```
+///
+/// # Panics
+/// Currently yet to implement for `a.len() > 1`.
+// NOTE: zi's TypeSig inherits from lfilter's output, in accordance with examples section of
+// documentation, both lfilter_zi and this should eventually support NDArray.
+pub fn lfilter<'a, T, S, D>(
+    b: ArrayView1<'a, T>,
+    a: ArrayView1<'a, T>,
+    x: ArrayBase<S, D>,
+    axis: Option<isize>,
+    zi: Option<ArrayView<T, D>>,
+) -> Result<(Array<T, IxDyn>, Option<Array<T, IxDyn>>)>
+where
+    S: Data<Elem = T> + 'a,
+    T: NumAssign + FromPrimitive + Copy + 'a,
+    D: Dimension + RemoveAxis,
+    SliceInfo<Vec<SliceInfoElem>, D, D>: SliceArg<D, OutDim = D>,
+{
+    let ndim = D::NDIM.unwrap_or(x.ndim());
+
+    if ndim == 0 {
+        return Err(Error::InvalidArg {
+            arg: "x".into(),
+            reason: "Linear filter requires at least 1-dimensional `x`.".into(),
+        });
+    }
+
+    if a.len() > 1 {
+        todo!();
+    };
+
+    let (axis, axis_inner) = {
+        // Before we convert into the appropriate axis object, we have to check at runtime that the
+        // axis value specified is within -N <= axis < N.
+        if axis.is_some_and(|axis| {
+            !(if axis < 0 {
+                axis.unsigned_abs() <= ndim
+            } else {
+                axis.unsigned_abs() < ndim
+            })
+        }) {
+            return Err(Error::InvalidArg {
+                arg: "axis".into(),
+                reason: "index out of range.".into(),
+            });
+        }
+
+        // We make a best effort to convert into appropriate axis object.
+        let axis_inner: isize = axis.unwrap_or(-1);
+        if axis_inner >= 0 {
+            Ok((Axis(axis_inner as usize), axis_inner.unsigned_abs()))
+        } else {
+            let axis_inner = x
+                .ndim()
+                .checked_add_signed(axis_inner)
+                .expect("Invalid add to `axis` option");
+            Ok((Axis(axis_inner), axis_inner))
+        }
+    }?;
+
+    if a.is_empty() {
+        return Err(Error::InvalidArg {
+            arg: "a".into(),
+            reason:
+                "Empty 1D array will result in inf/nan result. Consider setting to `array![1.]`."
+                    .into(),
+        });
+    } else if a.first().unwrap().is_zero() {
+        return Err(Error::InvalidArg {
+            arg: "a".into(),
+            reason: "First element of a found to be zero.".into(),
+        });
+    }
+    let b: Array1<T> = b.mapv(|bi| bi / a[0]); // b /= a[0]
+
+    if let Some(zii) = zi {
+        // Use a separate branch to avoid unnecessary heap allocation of `out_full` in `zi` = None
+        // case.
+        let mut zi = zii.clone().reborrow().into_dyn();
+
+        // if zi.ndim != x.ndim { return Err(...) } is signature asserted.
+
+        let mut expected_shape: Vec<usize> = x.shape().to_vec();
+        *expected_shape // expected_shape[axis] = b.shape[0] - 1
+            .get_mut(axis_inner)
+            .expect("invalid axis_inner") = b
+            .shape()
+            .first()
+            .expect("Could not get 0th axis len of b")
+            .checked_sub(1)
+            .expect("underflowing subtract");
+
+        if *zi.shape() != expected_shape {
+            let strides: Vec<Ix> = {
+                let zi_shape = zi.shape();
+                let zi_strides = zi.strides();
+
+                // Waiting for try_collect() from nightly... we use this Vec<Result<>> -> Result<Vec<>> method..
+                let tmp_heap: Vec<Result<_>> = (0..ndim)
+                    .map(|k| {
+                        if zi_shape[k] == expected_shape[k] {
+                            zi_strides[k].try_into().map_err(|_| Error::InvalidArg {
+                                arg: "zi".into(),
+                                reason: "zi found with negative stride".into(),
+                            })
+                        } else if k != axis_inner && zi_shape[k] == 1 {
+                            Ok(0)
+                        } else {
+                            Err(Error::InvalidArg {
+                                arg: "zi".into(),
+                                reason: "Unexpected shape for parameter zi".into(),
+                            })
+                        }
+                    })
+                    .collect();
+                let tmp_heap: Result<Vec<Ix>> = tmp_heap.into_iter().collect();
+
+                tmp_heap?.try_into().unwrap()
+            };
+
+            // ArrayView::from_shape(strides,
+            //     zi.as_slice_memory_order().unwrap()).unwrap().to_owned()
+            zi = ArrayView::from_shape((expected_shape).strides(strides), zii.as_slice().unwrap())
+                .unwrap();
+        };
+
+        let (out_full_dim, out_full_dim_inner): (Dim<_>, Vec<Ix>) = {
+            let mut tmp = x.shape().to_vec();
+            tmp[axis_inner] += b.len_of(Axis(0)) - 1; // From np.convolve(..., 'full')
+            (IntoDimension::into_dimension(tmp.as_ref()), tmp)
+        };
+
+        let mut out_full = ArrayD::<T>::zeros(out_full_dim);
+        out_full
+            .lanes_mut(axis)
+            .into_iter()
+            .zip(x.lanes(axis)) // Almost basically np.apply_along_axis
+            .try_for_each(|(mut out_full_slice, y)| {
+                // np.convolve uses full mode by default
+                // ```py
+                // out_full = np.apply_along_axis(lambda y: np.convolve(b, y), axis, x)
+                // ```
+                use sci_rs_core::num_rs::{convolve, ConvolveMode};
+                convolve(y, (&b).into(), ConvolveMode::Full)?.assign_to(&mut out_full_slice);
+                Ok(())
+            })?;
+
+        // ```py
+        // ind[axis] = slice(zi.shape[axis])
+        // out_full[tuple(ind)] += zi
+        // ```
+        {
+            let slice_info: SliceInfo<_, D, D> = {
+                let t = zi.shape()[axis_inner];
+                let mut tmp = vec![SliceInfoElem::from(..); ndim];
+                tmp[axis_inner] = SliceInfoElem::Slice {
+                    start: 0,
+                    end: Some(t as isize),
+                    step: 1,
+                };
+
+                SliceInfo::try_from(tmp).unwrap()
+            }; // Does not work because unless N: N<=6 cannot be bounded on type_sig
+            let mut s = out_full.slice_mut(&slice_info);
+            s += &zi;
+        }
+
+        let (out_dim, out_dim_inner) = {
+            // let mut out_dim_inner = out_full_dim_inner;
+            // if let Some(inner) = out_dim_inner.get_mut(axis_inner) {
+            //     *inner = inner
+            //         .checked_sub({
+            //             // Safety: b is Array1
+            //             *b.shape().first().unwrap()
+            //         })
+            //         // Safety: inner is defined by having added b.len()
+            //         .unwrap()
+            //         + 1;
+            // } else {
+            //     unsafe { unreachable_unchecked() };
+            // };
+            // (IntoDimension::into_dimension(out_dim_inner), out_dim_inner)
+            let tmp = x.shape();
+            (IntoDimension::into_dimension(tmp), tmp)
+        };
+        let mut out = ArrayBase::zeros(out_dim);
+        out.lanes_mut(axis)
+            .into_iter()
+            .zip(out_full.lanes(axis))
+            .for_each(|(mut out_slice, out_full_slice)| {
+                // ```py
+                // # Create the [...; :out_full.shape[axis] - len(b) + 1; ...] at index=axis
+                // ind[axis] = slice(out_full.shape[axis] - len(b) + 1)
+                // out = out_full[tuple(ind)]
+                // ```
+                out_full_slice
+                    .slice(
+                        SliceInfo::try_from([SliceInfoElem::Slice {
+                            start: 0,
+                            end: Some(out_dim_inner[axis_inner] as isize),
+                            step: 1,
+                        }])
+                        .unwrap(),
+                    )
+                    .assign_to(&mut out_slice);
+            });
+
+        // ```py
+        // ind[axis] = slice(out_full.shape[axis] - len(b) + 1, None)
+        // zf = out_full[tuple(ind)]
+        // ```
+        let zf = {
+            let slice_info: SliceInfo<_, D, IxDyn> = {
+                let t = out_full.shape()[axis_inner]
+                    .checked_add(1)
+                    .unwrap()
+                    .checked_sub(b.len())
+                    .unwrap();
+                let mut tmp = vec![SliceInfoElem::from(..); ndim];
+                tmp[axis_inner] = SliceInfoElem::Slice {
+                    start: t as isize,
+                    end: None,
+                    step: 1,
+                };
+
+                SliceInfo::try_from(tmp).unwrap()
+            };
+            out_full.slice(slice_info).to_owned()
+        };
+
+        Ok((out, Some(zf)))
+    } else {
+        // In contrast to the case where zi.is_some(), we can inline a slicing operation to reduce
+        // one extra heap allocation.
+
+        let (out_dim, out_dim_inner) = {
+            let tmp = x.shape();
+            (IntoDimension::into_dimension(tmp), tmp)
+        };
+        let mut out = ArrayBase::zeros(out_dim);
+
+        out.lanes_mut(axis)
+            .into_iter()
+            .zip(x.lanes(axis)) // Almost basically np.apply_along_axis
+            .try_for_each(|(mut out_slice, y)| {
+                // np.convolve uses full mode, but is eventually slices out with
+                // ```py
+                // ind = out_full.ndim * [slice(None)] # creates the "[:, :, ..., :]" slice r
+                // ind[axis] = slice(out_full.shape[axis] - len(b) + 1) # [:out_full.shape[ ..] - len(b) + 1]
+                // ```
+                use sci_rs_core::num_rs::{convolve, ConvolveMode};
+                let out_full = convolve(y, (&b).into(), ConvolveMode::Full)?;
+                out_full
+                    .slice(
+                        SliceInfo::try_from([SliceInfoElem::Slice {
+                            start: 0,
+                            end: Some(out_dim_inner[axis_inner] as isize),
+                            step: 1,
+                        }])
+                        .unwrap(),
+                    )
+                    .assign_to(&mut out_slice);
+                Ok(())
+            })?;
+
+        Ok((out, None))
+    }
+}
+
 /// Internal function called by [LFilter::lfilter] for situation a.len() > 1.
 fn linear_filter<'a, T, S, D>(
     b: ArrayView1<'a, T>,
@@ -406,7 +737,7 @@ mod test {
     use super::*;
     use alloc::vec;
     use approx::assert_relative_eq;
-    use ndarray::{array, ArrayBase, Dim, Ix, OwnedRepr};
+    use ndarray::{array, ArrayBase, Dim, Ix, OwnedRepr, ViewRepr};
 
     // Tests that have a = [1.] with zi = None on input x with dim = 1.
     #[test]
@@ -591,5 +922,146 @@ mod test {
 
         let result = Array1::lfilter((&b).into(), (&a).into(), x, Some(-2), None);
         assert!(result.is_err());
+    }
+
+    #[test]
+    fn dyn_dim_fir_with_zi() {
+        {
+            // Case which does not falls into zi.shape() != expected_shape branch
+            let b = array![0.5, 0.4];
+            let a = array![1.];
+            let x = array![
+                [-4., -3., -1., -2., 1., 2., -3., 4., 3., 5., 6., 7., -8., 1.],
+                [-4., -3., -1., -2., 1., 2., -3., 4., 3., 5., 6., 7., -8., 1.],
+            ];
+            let zi = array![[-1.6], [1.4]];
+            let expected = array![
+                [-3.6, -3.1, -1.7, -1.4, -0.3, 1.4, -0.7, 0.8, 3.1, 3.7, 5., 5.9, -1.2, -2.7],
+                [-0.6, -3.1, -1.7, -1.4, -0.3, 1.4, -0.7, 0.8, 3.1, 3.7, 5., 5.9, -1.2, -2.7]
+            ];
+            let expected_zi = array![[0.4], [0.4]];
+
+            // Test static dim input
+            let Ok((result, Some(r_zi))) =
+                lfilter((&b).into(), (&a).into(), x.view(), None, Some((&zi).into()))
+            else {
+                panic!("Should not have errored")
+            };
+
+            assert_eq!(result.len(), expected.len());
+            result.into_iter().zip(&expected).for_each(|(r, &e)| {
+                assert_relative_eq!(r, e, max_relative = 1e-6);
+            });
+            assert_eq!(r_zi.len(), expected_zi.len());
+            r_zi.into_iter().zip(&expected_zi).for_each(|(r, &e)| {
+                assert_relative_eq!(r, e, max_relative = 1e-6);
+            });
+
+            // Test dyn input
+            let Ok((result, Some(r_zi))) = lfilter(
+                (&b).into(),
+                (&a).into(),
+                x.into_dyn(),
+                None,
+                Some(zi.into_dyn().view()),
+            ) else {
+                panic!("Should not have errored")
+            };
+
+            assert_eq!(result.len(), expected.len());
+            result.into_iter().zip(expected).for_each(|(r, e)| {
+                assert_relative_eq!(r, e, max_relative = 1e-6);
+            });
+            assert_eq!(r_zi.len(), expected_zi.len());
+            r_zi.into_iter().zip(expected_zi).for_each(|(r, e)| {
+                assert_relative_eq!(r, e, max_relative = 1e-6);
+            })
+        }
+        {
+            // Case which does falls into zi.shape() != expected_shape branch
+            let b = array![5., 0.4, 1., -2.];
+            let a = array![1.];
+            let x = array![[1., 2., 3., 4., 3., 5., 6.], [8., 0., 1., 0., 3., 7., 6.]];
+            let zi = array![[0.4], [0.45], [0.05]];
+            let expected = array![
+                [5.4, 10.4, 15.4, 20.4, 15.4, 25.4, 30.4],
+                [40.85, 1.25, 6.65, 2.05, 16.65, 37.45, 32.85],
+            ];
+            let expected_zi = array![
+                [4.25, 2.05, 3.45, 4.05, 4.25, 7.85, 8.45],
+                [6., -4., -5., -8., -3., -3., -6.],
+                [-16., 0., -2., 0., -6., -14., -12.],
+            ];
+
+            let Ok((result, Some(r_zi))) = lfilter(
+                (&b).into(),
+                (&a).into(),
+                x.into_dyn(),
+                Some(0),
+                Some(zi.into_dyn().view()),
+            ) else {
+                panic!("Should not have errored")
+            };
+
+            assert_eq!(result.len(), expected.len());
+            result.into_iter().zip(expected).for_each(|(r, e)| {
+                assert_relative_eq!(r, e, max_relative = 1e-6);
+            });
+            assert_eq!(r_zi.len(), expected_zi.len());
+            r_zi.into_iter().zip(expected_zi).for_each(|(r, e)| {
+                assert_relative_eq!(r, e, max_relative = 1e-6);
+            })
+        }
+        {
+            // Case which does falls into zi.shape() != expected_shape branch for 3D input
+            let b = array![5., 0.4, 1., -2.];
+            let a = array![1.];
+            let x = array![
+                [[0.2, 2., 3., 4., 3., 5., 6.], [8., 0., 1., 0., 3., 7., 6.]],
+                [[1., 2., 3., 4., 3., 5., 6.], [8., 0., 1., 0., 3., 7., 6.]]
+            ];
+            let zi = array![[[0.4], [0.45], [0.05]], [[0.6], [0.15], [0.25]]];
+            let expected = array![
+                [
+                    [1.4, 10.4, 15.4, 20.4, 15.4, 25.4, 30.4],
+                    [40.53, 1.25, 6.65, 2.05, 16.65, 37.45, 32.85]
+                ],
+                [
+                    [5.6, 10.6, 15.6, 20.6, 15.6, 25.6, 30.6],
+                    [40.55, 0.95, 6.35, 1.75, 16.35, 37.15, 32.55]
+                ]
+            ];
+            let expected_zi = array![
+                [
+                    [3.45, 2.05, 3.45, 4.05, 4.25, 7.85, 8.45],
+                    [7.6, -4., -5., -8., -3., -3., -6.],
+                    [-16., 0., -2., 0., -6., -14., -12.]
+                ],
+                [
+                    [4.45, 2.25, 3.65, 4.25, 4.45, 8.05, 8.65],
+                    [6., -4., -5., -8., -3., -3., -6.],
+                    [-16., 0., -2., 0., -6., -14., -12.]
+                ]
+            ];
+
+            let Ok((result, Some(r_zi))) = lfilter(
+                (&b).into(),
+                (&a).into(),
+                x.into_dyn(),
+                Some(1),
+                Some(zi.into_dyn().view()),
+            ) else {
+                panic!("Should not have errored")
+            };
+
+            assert_eq!(result.len(), expected.len());
+            result.into_iter().zip(expected).for_each(|(r, e)| {
+                assert_relative_eq!(r, e, max_relative = 1e-6);
+            });
+            assert_eq!(r_zi.len(), expected_zi.len());
+            r_zi.into_iter().zip(expected_zi).for_each(|(r, e)| {
+                assert_relative_eq!(r, e, max_relative = 1e-6);
+            })
+        }
     }
 }

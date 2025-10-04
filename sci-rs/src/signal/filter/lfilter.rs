@@ -564,7 +564,7 @@ where
                     .collect();
                 let tmp_heap: Result<Vec<Ix>> = tmp_heap.into_iter().collect();
 
-                tmp_heap?.try_into().unwrap()
+                tmp_heap?
             };
 
             // ArrayView::from_shape(strides,

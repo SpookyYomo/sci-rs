@@ -8,6 +8,9 @@ use ndarray::{
 use num_traits::{FromPrimitive, Num, NumAssign};
 use sci_rs_core::{Error, Result};
 
+type LFilterResult<T, const N: usize> = (Array<T, Dim<[Ix; N]>>, Option<Array<T, Dim<[Ix; N]>>>);
+type LFilterDynResult<T, D> = (Array<T, D>, Option<Array<T, D>>);
+
 /// Internal function for obtaining length of all axis as array from input from input.
 ///
 /// This is almost the same as `a.shape()`, but is a array `[T; N]` instead of a `Vec<T>`.
@@ -148,7 +151,7 @@ where
         x: Self,
         axis: Option<isize>,
         zi: Option<ArrayView<T, Dim<[Ix; N]>>>,
-    ) -> Result<(Array<T, Dim<[Ix; N]>>, Option<Array<T, Dim<[Ix; N]>>>)>
+    ) -> Result<LFilterResult<T, N>>
     where
         [Ix; N]: IntoDimension<Dim = Dim<[Ix; N]>>,
         Dim<[Ix; N]>: RemoveAxis,
@@ -458,7 +461,7 @@ pub fn lfilter<'a, T, S, D>(
     x: ArrayBase<S, D>,
     axis: Option<isize>,
     zi: Option<ArrayView<T, D>>,
-) -> Result<(Array<T, IxDyn>, Option<Array<T, IxDyn>>)>
+) -> Result<LFilterDynResult<T, IxDyn>>
 where
     S: Data<Elem = T> + 'a,
     T: NumAssign + FromPrimitive + Copy + 'a,
@@ -723,7 +726,7 @@ fn linear_filter<'a, T, S, D>(
     x: ArrayBase<S, D>,
     axis: Option<isize>,
     zi: Option<ArrayView<T, D>>,
-) -> Result<(Array<T, D>, Option<Array<T, D>>)>
+) -> Result<LFilterDynResult<T, D>>
 where
     D: Dimension + RemoveAxis,
     T: NumAssign + FromPrimitive + Copy + 'a,

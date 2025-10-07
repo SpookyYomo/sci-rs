@@ -128,7 +128,6 @@ where
 /// # Errors
 /// - Axis is out of bounds.
 /// - Start/stop elements are out of bounds.
-///
 pub fn axis_slice<A, S, D>(
     a: &ArrayBase<S, D>,
     start: Option<isize>,
@@ -143,8 +142,7 @@ where
 {
     let ndim = D::NDIM.unwrap_or(a.ndim());
 
-    // Axis object and its corresponding usize internal.
-    let (axis, axis_inner) = {
+    let axis = {
         if axis.is_some_and(|axis| {
             !(if axis < 0 {
                 axis.unsigned_abs() <= ndim
@@ -158,29 +156,57 @@ where
             });
         }
 
-        // We make a best effort to convert into appropriate axis object.
-        let axis_inner: isize = axis.unwrap_or(-1);
-        if axis_inner >= 0 {
-            (Axis(axis_inner as usize), axis_inner.unsigned_abs())
+        // We make a best effort to convert into appropriate usize.
+        let axis: isize = axis.unwrap_or(-1);
+        if axis >= 0 {
+            axis.unsigned_abs()
         } else {
-            let axis_inner = a
-                .ndim()
-                .checked_add_signed(axis_inner)
-                .expect("Invalid add to `axis` option");
-            (Axis(axis_inner), axis_inner)
+            a.ndim()
+                .checked_add_signed(axis)
+                .expect("Invalid add to `axis` option")
         }
     };
 
+    unsafe { axis_slice_unsafe(a, start, end, step, axis, ndim) }
+}
+
+/// Takes a slice along `axis` from `a`.
+///
+/// Assumes that the specified axis is within bounds.
+///
+/// # Parameters
+/// * `a`: Array being sliced from.
+/// * `start`: `Option<isize>`. None defaults to 0.
+/// * `end`: `Option<isize>`.
+/// * `step`: `Option<isize>`. None default to 1.
+/// * `axis`: `usize`.
+/// * `a_ndim`: Dimensionality of `a`. This strictly has to be `a.ndim()`.
+///
+/// # Panics
+/// - Axis is out of bounds.
+/// - Start/stop elements are out of bounds.
+pub(crate) fn axis_slice_unsafe<A, S, D>(
+    a: &ArrayBase<S, D>,
+    start: Option<isize>,
+    end: Option<isize>,
+    step: Option<isize>,
+    axis: usize,
+    a_ndim: usize,
+) -> Result<ArrayView<'_, A, D>>
+where
+    S: Data<Elem = A>,
+    D: Dimension,
+    SliceInfo<Vec<SliceInfoElem>, D, D>: SliceArg<D, OutDim = D>,
+{
+    debug_assert!(if a_ndim != 0 {
+        axis < a_ndim // Eg: A 1D-array should only have axis = 0
+    } else {
+        axis <= a_ndim // Allow for axis = 0 when ndim = 0.
+    });
+
     let sl = SliceInfo::<_, D, D>::try_from({
-        let mut tmp = vec![
-            SliceInfoElem::Slice {
-                start: 0,
-                end: None,
-                step: 1,
-            };
-            ndim
-        ];
-        tmp[axis_inner] = SliceInfoElem::Slice {
+        let mut tmp = vec![SliceInfoElem::from(..); a_ndim];
+        tmp[axis] = SliceInfoElem::Slice {
             start: start.unwrap_or(0),
             end,
             step: step.unwrap_or(1),

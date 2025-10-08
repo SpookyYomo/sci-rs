@@ -204,13 +204,35 @@ where
         axis <= a_ndim // Allow for axis = 0 when ndim = 0.
     });
 
+    let axis_len = a.shape()[axis] as isize;
+    let step = step.unwrap_or(1);
+
+    let coerce = |idx: Option<isize>, def_pos: isize, def_neg: isize| -> isize {
+        match idx {
+            Some(i) if i < 0 => (axis_len + i).max(0),
+            Some(i) => i.min(axis_len),
+            None => {
+                if !step.is_negative() {
+                    def_pos
+                } else {
+                    def_neg
+                }
+            }
+        }
+    };
+    let (start, end) = {
+        let mut start = coerce(start, 0, axis_len - 1);
+        let mut end = coerce(end, axis_len, -1);
+        if step.is_negative() {
+            (end + 1, Some(start + 1))
+        } else {
+            (start, Some(end))
+        }
+    };
+
     let sl = SliceInfo::<_, D, D>::try_from({
         let mut tmp = vec![SliceInfoElem::from(..); a_ndim];
-        tmp[axis] = SliceInfoElem::Slice {
-            start: start.unwrap_or(0),
-            end,
-            step: step.unwrap_or(1),
-        };
+        tmp[axis] = SliceInfoElem::Slice { start, end, step };
 
         tmp
     })
@@ -236,6 +258,20 @@ mod test {
         assert_eq!(
             axis_slice(&a, Some(0), Some(2), Some(1), Some(0)).unwrap(),
             array![[1, 2, 3], [4, 5, 6]]
+        );
+    }
+
+    /// Tests on IxN arrays with negative step.
+    #[test]
+    fn axis_slice_neg_step() {
+        let a = array![[1, 2, 3, 4, 5], [0, 1, 4, 9, 16]];
+        assert_eq!(
+            axis_slice(&a, Some(2), Some(0), Some(-1), None).unwrap(),
+            array![[3, 2], [4, 1]]
+        );
+        assert_eq!(
+            axis_slice(&a, Some(-2), Some(-4), Some(-1), None).unwrap(),
+            array![[4, 3], [9, 4]]
         );
     }
 

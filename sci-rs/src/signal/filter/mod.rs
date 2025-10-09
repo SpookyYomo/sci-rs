@@ -30,6 +30,8 @@ mod arraytools;
 use arraytools::*;
 
 #[cfg(feature = "alloc")]
+mod filtfilt;
+#[cfg(feature = "alloc")]
 mod lfilter;
 #[cfg(feature = "alloc")]
 mod lfilter_zi;
@@ -40,6 +42,8 @@ mod sosfilt_zi;
 #[cfg(feature = "alloc")]
 mod sosfiltfilt;
 
+#[cfg(feature = "alloc")]
+pub use filtfilt::*;
 #[cfg(feature = "alloc")]
 pub use lfilter::*;
 #[cfg(feature = "alloc")]

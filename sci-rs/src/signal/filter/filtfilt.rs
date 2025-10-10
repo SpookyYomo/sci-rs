@@ -32,6 +32,8 @@ impl FiltFiltPadType {
     /// ## Type of extension
     /// * odd: Odd extension at the boundaries of an array, generating a new ndarray by making an
     ///   odd extension of `x` along the specified axis.
+    /// * even: Even extension at the boundaries of an array, generating a new ndarray by making an
+    ///   even extension of `x` along the specified axis.
     fn ext<'a, T, S, D>(
         &'a self,
         x: ArrayBase<S, D>,
@@ -84,7 +86,24 @@ impl FiltFiltPadType {
                     }
                 })
             }
-            FiltFiltPadType::Even => todo!(),
+            FiltFiltPadType::Even => {
+                if n < 1 {
+                    return Ok(x.to_owned());
+                }
+
+                let left_ext = unsafe {
+                    axis_slice_unsafe(&x, Some(n as isize), Some(0), Some(-1), axis, ndim)
+                }?;
+                let right_ext = unsafe {
+                    axis_slice_unsafe(&x, Some(-2), Some(-2 - (n as isize)), Some(-1), axis, ndim)
+                }?;
+
+                ndarray::concatenate(Axis(axis), &[left_ext.view(), x.view(), right_ext.view()])
+                    .map_err(|_| Error::InvalidArg {
+                        arg: "x".into(),
+                        reason: "Shape Error".into(),
+                    })
+            }
             FiltFiltPadType::Const => todo!(),
         }
     }
@@ -107,6 +126,20 @@ mod test {
             [-1, 0, 1, 2, 3, 4, 5, 6, 7],
             [-4, -1, 0, 1, 4, 9, 16, 23, 28]
         ];
+
+        ndarray::Zip::from(&result)
+            .and(&expected)
+            .for_each(|&r, &e| assert_eq!(r, e));
+    }
+
+    /// Test odd_ext as from documentation.
+    #[test]
+    fn even_ext_doc() {
+        let even = FiltFiltPadType::Even;
+        let a = array![[1, 2, 3, 4, 5], [0, 1, 4, 9, 16]];
+
+        let result = even.ext(a, 2, None).expect("Could not get even_ext.");
+        let expected = array![[3, 2, 1, 2, 3, 4, 5, 4, 3], [4, 1, 0, 1, 4, 9, 16, 9, 4]];
 
         ndarray::Zip::from(&result)
             .and(&expected)

@@ -48,6 +48,10 @@ impl FiltFiltPadType {
         D: Dimension + RemoveAxis,
         SliceInfo<Vec<SliceInfoElem>, D, D>: SliceArg<D, OutDim = D>,
     {
+        if n < 1 {
+            return Ok(x.to_owned());
+        }
+
         if D::NDIM.is_none() {
             return Err(Error::InvalidArg {
                 arg: "x".into(),
@@ -64,10 +68,6 @@ impl FiltFiltPadType {
 
         match self {
             FiltFiltPadType::Odd => {
-                if n < 1 {
-                    return Ok(x.to_owned());
-                }
-
                 let left_end =
                     unsafe { axis_slice_unsafe(&x, Some(0), Some(1), None, axis, ndim) }?;
                 let left_ext = unsafe {
@@ -89,10 +89,6 @@ impl FiltFiltPadType {
                 })
             }
             FiltFiltPadType::Even => {
-                if n < 1 {
-                    return Ok(x.to_owned());
-                }
-
                 let left_ext = unsafe {
                     axis_slice_unsafe(&x, Some(n as isize), Some(0), Some(-1), axis, ndim)
                 }?;
@@ -107,10 +103,6 @@ impl FiltFiltPadType {
                     })
             }
             FiltFiltPadType::Const => {
-                if n < 1 {
-                    return Ok(x.to_owned());
-                }
-
                 let ones: Array<T, D> = Array::ones({
                     let mut t = vec![1; ndim];
                     t[axis] = n;

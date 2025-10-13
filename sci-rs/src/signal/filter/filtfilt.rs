@@ -52,14 +52,7 @@ impl FiltFiltPadType {
             return Ok(x.to_owned());
         }
 
-        if D::NDIM.is_none() {
-            return Err(Error::InvalidArg {
-                arg: "x".into(),
-                reason: "IxDyn is not supported".into(),
-            });
-        }
-
-        let ndim = D::NDIM.unwrap();
+        let ndim = D::NDIM.unwrap_or(x.ndim());
 
         let axis = check_and_get_axis_dyn(axis, &x).map_err(|_| Error::InvalidArg {
             arg: "axis".into(),
@@ -148,7 +141,7 @@ mod test {
         let odd = FiltFiltPadType::Odd;
         let a = array![[1, 2, 3, 4, 5], [0, 1, 4, 9, 16]];
 
-        let result = odd.ext(a, 2, None).expect("Could not get odd_ext.");
+        let result = odd.ext(a.view(), 2, None).expect("Could not get odd_ext.");
         let expected = array![
             [-1, 0, 1, 2, 3, 4, 5, 6, 7],
             [-4, -1, 0, 1, 4, 9, 16, 23, 28]
@@ -156,6 +149,13 @@ mod test {
 
         ndarray::Zip::from(&result)
             .and(&expected)
+            .for_each(|&r, &e| assert_eq!(r, e));
+
+        let result = odd
+            .ext(a.into_dyn(), 2, None)
+            .expect("Could not get odd_ext.");
+        ndarray::Zip::from(&result)
+            .and(&expected.into_dyn())
             .for_each(|&r, &e| assert_eq!(r, e));
     }
 
@@ -165,11 +165,20 @@ mod test {
         let even = FiltFiltPadType::Even;
         let a = array![[1, 2, 3, 4, 5], [0, 1, 4, 9, 16]];
 
-        let result = even.ext(a, 2, None).expect("Could not get even_ext.");
+        let result = even
+            .ext(a.view(), 2, None)
+            .expect("Could not get even_ext.");
         let expected = array![[3, 2, 1, 2, 3, 4, 5, 4, 3], [4, 1, 0, 1, 4, 9, 16, 9, 4]];
 
         ndarray::Zip::from(&result)
             .and(&expected)
+            .for_each(|&r, &e| assert_eq!(r, e));
+
+        let result = even
+            .ext(a.into_dyn(), 2, None)
+            .expect("Could not get even_ext.");
+        ndarray::Zip::from(&result)
+            .and(&expected.into_dyn())
             .for_each(|&r, &e| assert_eq!(r, e));
     }
 
@@ -179,11 +188,20 @@ mod test {
         let const_ext = FiltFiltPadType::Const;
         let a = array![[1, 2, 3, 4, 5], [0, 1, 4, 9, 16]];
 
-        let result = const_ext.ext(a, 2, None).expect("Could not get even_ext.");
+        let result = const_ext
+            .ext(a.view(), 2, None)
+            .expect("Could not get even_ext.");
         let expected = array![[1, 1, 1, 2, 3, 4, 5, 5, 5], [0, 0, 0, 1, 4, 9, 16, 16, 16]];
 
         ndarray::Zip::from(&result)
             .and(&expected)
+            .for_each(|&r, &e| assert_eq!(r, e));
+
+        let result = const_ext
+            .ext(a.into_dyn(), 2, None)
+            .expect("Could not get even_ext.");
+        ndarray::Zip::from(&result)
+            .and(&expected.into_dyn())
             .for_each(|&r, &e| assert_eq!(r, e));
     }
 }

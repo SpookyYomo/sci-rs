@@ -59,6 +59,17 @@ impl FiltFiltPadType {
             reason: "index out of range.".into(),
         })?;
 
+        {
+            let axis_len = x.shape()[axis];
+            if n >= axis_len {
+                return Err(Error::InvalidArg {
+                    arg: "n".into(),
+                    reason: "Extension of array cannot be longer than array in specified axis."
+                        .into(),
+                });
+            }
+        }
+
         match self {
             FiltFiltPadType::Odd => {
                 let left_end =
@@ -159,6 +170,18 @@ mod test {
             .for_each(|&r, &e| assert_eq!(r, e));
     }
 
+    /// Test odd_ext's limits.
+    #[test]
+    fn odd_ext_limits() {
+        let odd = FiltFiltPadType::Odd;
+        let a = array![[1, 2, 3, 4], [0, 1, 4, 9]];
+
+        let result = odd.ext(a.view(), 3, None);
+        assert!(result.is_ok());
+        let result = odd.ext(a, 4, None);
+        assert!(result.is_err());
+    }
+
     /// Test odd_ext as from documentation.
     #[test]
     fn even_ext_doc() {
@@ -182,6 +205,18 @@ mod test {
             .for_each(|&r, &e| assert_eq!(r, e));
     }
 
+    /// Test even_ext's limits.
+    #[test]
+    fn even_ext_limits() {
+        let even = FiltFiltPadType::Even;
+        let a = array![[1, 2, 3, 4], [0, 1, 4, 9]];
+
+        let result = even.ext(a.view(), 3, None);
+        assert!(result.is_ok());
+        let result = even.ext(a, 4, None);
+        assert!(result.is_err());
+    }
+
     /// Test const_ext as from documentation.
     #[test]
     fn const_ext_doc() {
@@ -203,5 +238,17 @@ mod test {
         ndarray::Zip::from(&result)
             .and(&expected.into_dyn())
             .for_each(|&r, &e| assert_eq!(r, e));
+    }
+
+    /// Test const_ext's limits.
+    #[test]
+    fn const_ext_limits() {
+        let const_ext = FiltFiltPadType::Const;
+        let a = array![[1, 2, 3, 4], [0, 1, 4, 9]];
+
+        let result = const_ext.ext(a.view(), 3, None);
+        assert!(result.is_ok());
+        let result = const_ext.ext(a, 4, None);
+        assert!(result.is_err());
     }
 }

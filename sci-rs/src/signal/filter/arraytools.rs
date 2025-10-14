@@ -127,6 +127,8 @@ where
 ///
 /// # Errors
 /// - Axis is out of bounds.
+///
+/// # Panics
 /// - Start/stop elements are out of bounds.
 pub fn axis_slice<A, S, D>(
     a: &ArrayBase<S, D>,

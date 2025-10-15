@@ -36,14 +36,9 @@ impl FiltFiltPadType {
     ///   even extension of `x` along the specified axis.
     /// * const: Constant extension at the boundaries of an array, generating a new ndarray by
     ///   making an constant extension of `x` along the specified axis.
-    fn ext<'a, T, S, D>(
-        &'a self,
-        x: ArrayBase<S, D>,
-        n: usize,
-        axis: Option<isize>,
-    ) -> Result<Array<T, D>>
+    fn ext<T, S, D>(&self, x: ArrayBase<S, D>, n: usize, axis: Option<isize>) -> Result<Array<T, D>>
     where
-        T: Clone + Add<T, Output = T> + Sub<T, Output = T> + num_traits::One + 'a,
+        T: Clone + Add<T, Output = T> + Sub<T, Output = T> + num_traits::One,
         S: Data<Elem = T>,
         D: Dimension + RemoveAxis,
         SliceInfo<Vec<SliceInfoElem>, D, D>: SliceArg<D, OutDim = D>,

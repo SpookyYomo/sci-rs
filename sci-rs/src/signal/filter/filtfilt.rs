@@ -2,8 +2,8 @@ use super::{axis_slice_unsafe, check_and_get_axis_dyn};
 use alloc::{vec, vec::Vec};
 use core::ops::{Add, Sub};
 use ndarray::{
-    Array, ArrayBase, ArrayView, ArrayView1, Axis, Data, Dim, Dimension, Ix, RawData, RemoveAxis,
-    SliceArg, SliceInfo, SliceInfoElem,
+    Array, ArrayBase, ArrayView, ArrayView1, Axis, CowArray, Data, Dim, Dimension, Ix, RawData,
+    RemoveAxis, SliceArg, SliceInfo, SliceInfoElem,
 };
 use sci_rs_core::{Error, Result};
 
@@ -133,6 +133,62 @@ impl FiltFiltPadType {
             }
         }
     }
+}
+
+/// Arguments for [FiltFilt::filtfilt].
+#[derive(Copy, Clone, Default)]
+pub struct FiltFiltPad {
+    /// Padding type.
+    pub pad_type: FiltFiltPadType,
+    /// Length of padding.
+    pub len: Option<usize>,
+}
+
+/// Helper for validating padding of filtfilt.
+///
+/// # Parameters
+/// `pad`: `Option<FiltFiltPad>`
+///   A none value from the user specifies no padding, which implies that the pad len is also 0.
+///   Otherwise, the user specifies a specific padding and pad_len.
+/// `x`: NDArray
+///   Array that is being filtered.
+/// `axis`: usize
+///   Axis of `x` which is being filtered.
+/// `ntaps`: usize
+///   This simply is `max(a.len(), b.len())`.
+///
+/// # Panics
+/// `axis` is as acting on `x` is assumed to be valid, otherwise panics.
+fn validate_pad<T, D>(
+    pad: Option<FiltFiltPad>,
+    x: ArrayView<T, D>,
+    axis: usize,
+    ntaps: usize,
+) -> Result<(usize, CowArray<T, D>)>
+where
+    T: Clone + Add<T, Output = T> + Sub<T, Output = T> + num_traits::One,
+    D: Dimension + RemoveAxis,
+    SliceInfo<Vec<SliceInfoElem>, D, D>: SliceArg<D, OutDim = D>,
+{
+    let edge = match pad {
+        None => 0,
+        Some(FiltFiltPad { len, .. }) => len.unwrap_or(ntaps * 3),
+    };
+
+    {
+        x.shape().get(axis).ok_or(Error::InvalidArg {
+            arg: "axis".into(),
+            reason: "The length of the input vector x must be greater than padlen.".into(),
+        })?;
+    }
+
+    let ext = if let Some(FiltFiltPad { pad_type, .. }) = pad {
+        CowArray::from(pad_type.ext(x, edge, Some(axis as _))?)
+    } else {
+        CowArray::from(x)
+    };
+
+    Ok((edge, ext))
 }
 
 #[cfg(test)]

@@ -156,6 +156,7 @@ pub struct FiltFiltPad {
 ///   Axis of `x` which is being filtered.
 /// `ntaps`: usize
 ///   This simply is `max(a.len(), b.len())`.
+//   In an ideal world, this would be shoe-horned into FiltFiltPad's len parameter.
 ///
 /// # Panics
 /// `axis` is as acting on `x` is assumed to be valid, otherwise panics.
@@ -301,5 +302,79 @@ mod test {
         assert!(result.is_ok());
         let result = const_ext.ext(a, 4, None);
         assert!(result.is_err());
+    }
+
+    /// Tests for when there is no padding.
+    #[test]
+    fn pad_none() {
+        let p = None;
+        let x = array![1];
+        let result = validate_pad(p, x.view(), 0, 0).expect("Could not pad with none.");
+
+        assert_eq!(result.0, 0);
+        assert_eq!(result.1, x);
+    }
+
+    /// Tests for when there is even padding.
+    #[test]
+    fn pad_even() {
+        let p = Some(FiltFiltPad {
+            pad_type: FiltFiltPadType::Even,
+            len: Some(2),
+        });
+        let x = array![[1, 2, 3, 4, 5, 6, 7, 8], [0, 1, 4, 9, 16, 25, 36, 49]];
+        let (result_edge, result) =
+            validate_pad(p, x.view(), 1, 2).expect("Could not pad with even.");
+        let expected_edge = 2;
+        let expected = array![
+            [3, 2, 1, 2, 3, 4, 5, 6, 7, 8, 7, 6],
+            [4, 1, 0, 1, 4, 9, 16, 25, 36, 49, 36, 25]
+        ];
+
+        assert_eq!(result_edge, expected_edge);
+        assert_eq!(result, expected);
+        ndarray::Zip::from(&result)
+            .and(&expected)
+            .for_each(|r, e| assert_eq!(r, e));
+    }
+
+    /// Tests for when there is even padding.
+    #[test]
+    fn pad_odd() {
+        let p = Some(FiltFiltPad {
+            pad_type: FiltFiltPadType::Odd,
+            len: Some(2),
+        });
+        let x = array![[1, 2, 3, 4, 5, 6, 7, 8], [0, 1, 4, 9, 16, 25, 36, 49]];
+        let (result_edge, result) =
+            validate_pad(p, x.view(), 1, 2).expect("Could not pad with odd.");
+        let expected_edge = 2;
+        let expected = array![
+            [-1, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
+            [-4, -1, 0, 1, 4, 9, 16, 25, 36, 49, 62, 73]
+        ];
+
+        assert_eq!(result_edge, expected_edge);
+        assert_eq!(result, expected);
+    }
+
+    /// Tests for when there is const padding.
+    #[test]
+    fn pad_const() {
+        let p = Some(FiltFiltPad {
+            pad_type: FiltFiltPadType::Const,
+            len: Some(2),
+        });
+        let x = array![[1, 2, 3, 4, 5, 6, 7, 8], [0, 1, 4, 9, 16, 25, 36, 49]];
+        let (result_edge, result) =
+            validate_pad(p, x.view(), 1, 2).expect("Could not pad with odd.");
+        let expected_edge = 2;
+        let expected = array![
+            [1, 1, 1, 2, 3, 4, 5, 6, 7, 8, 8, 8],
+            [0, 0, 0, 1, 4, 9, 16, 25, 36, 49, 49, 49]
+        ];
+
+        assert_eq!(result_edge, expected_edge);
+        assert_eq!(result, expected);
     }
 }

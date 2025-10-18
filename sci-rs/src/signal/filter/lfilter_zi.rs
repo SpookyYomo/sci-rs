@@ -26,7 +26,6 @@ pub fn lfilter_zi_dyn<F>(b: &[F], a: &[F]) -> Array1<F>
 where
     F: RealField + Copy + PartialEq + Scalar + Zero + One + Sum + SubAssign,
 {
-    assert!(b.len() == a.len());
     let m = b.len();
 
     let ai0 = a

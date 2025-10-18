@@ -75,9 +75,9 @@ where
 /// Implement lfilter for fixed dimension of input array `x`.
 ///
 /// Valid only from 1 to 6 dimensional arrays.
-pub trait LFilter<S, const N: usize>
+pub trait LFilter<S, T, const N: usize>
 where
-    S: ndarray::RawData,
+    S: Data<Elem = T>,
 {
     /// Filter data `x` along one-dimension with an IIR or FIR filter.
     ///
@@ -145,7 +145,7 @@ where
     /// Currently yet to implement for `a.len() > 1`.
     // NOTE: zi's TypeSig inherits from lfilter's output, in accordance with examples section of
     // documentation, both lfilter_zi and this should eventually support NDArray.
-    fn lfilter<'a, T>(
+    fn lfilter<'a>(
         b: ArrayView1<'a, T>,
         a: ArrayView1<'a, T>,
         x: Self,
@@ -161,11 +161,11 @@ where
 
 macro_rules! lfilter_for_dim {
     ($N:literal) => {
-        impl<S> LFilter<S, $N> for ArrayBase<S, Dim<[Ix; $N]>>
+        impl<S, T> LFilter<S, T, $N> for ArrayBase<S, Dim<[Ix; $N]>>
         where
-            S: ndarray::RawData,
+            S: Data<Elem = T>,
         {
-            fn lfilter<'a, T>(
+            fn lfilter<'a>(
                 b: ArrayView1<'a, T>,
                 a: ArrayView1<'a, T>,
                 x: Self,
@@ -176,7 +176,7 @@ macro_rules! lfilter_for_dim {
                 [Ix; $N]: IntoDimension<Dim = Dim<[Ix; $N]>>,
                 Dim<[Ix; $N]>: RemoveAxis,
                 T: NumAssign + FromPrimitive + Copy + 'a,
-                S: Data<Elem = T> + 'a,
+                S: 'a,
             {
                 if a.len() > 1 {
                     return linear_filter(b, a, x, axis, zi);

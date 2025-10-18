@@ -25,6 +25,11 @@ pub use ext::*;
 pub use sosfilt::*;
 
 #[cfg(feature = "alloc")]
+mod arraytools;
+#[cfg(feature = "alloc")]
+use arraytools::*;
+
+#[cfg(feature = "alloc")]
 mod lfilter;
 #[cfg(feature = "alloc")]
 mod lfilter_zi;

@@ -1,3 +1,4 @@
+use super::arraytools::ndarray_shape_as_array_st;
 use alloc::{vec, vec::Vec};
 use core::marker::Copy;
 use ndarray::{
@@ -10,24 +11,6 @@ use sci_rs_core::{Error, Result};
 
 type LFilterResult<T, const N: usize> = (Array<T, Dim<[Ix; N]>>, Option<Array<T, Dim<[Ix; N]>>>);
 type LFilterDynResult<T, D> = (Array<T, D>, Option<Array<T, D>>);
-
-/// Internal function for obtaining length of all axis as array from input from input.
-///
-/// This is almost the same as `a.shape()`, but is a array `[T; N]` instead of a `Vec<T>`.
-///
-/// # Parameters
-/// `a`: Array whose shape is needed as a slice.
-fn ndarray_shape_as_array<'a, S, T, const N: usize>(a: &ArrayBase<S, Dim<[Ix; N]>>) -> [Ix; N]
-where
-    [Ix; N]: IntoDimension<Dim = Dim<[Ix; N]>>,
-    Dim<[Ix; N]>: RemoveAxis,
-    T: FromPrimitive,
-    S: Data<Elem = T> + 'a,
-{
-    let mut tmp = [0; N];
-    (0..N).for_each(|axis| tmp[axis] = a.len_of(Axis(axis)));
-    tmp
-}
 
 /// Internal function for casting into [Axis] and appropriate usize from isize.
 ///
@@ -249,7 +232,7 @@ macro_rules! lfilter_for_dim {
                     };
 
                     let (out_full_dim, out_full_dim_inner): (Dim<_>, [Ix; $N]) = {
-                        let mut tmp: [Ix; $N] = ndarray_shape_as_array(&x);
+                        let mut tmp: [Ix; $N] = ndarray_shape_as_array_st(&x);
                         tmp[axis_inner] += b.len_of(Axis(0)) - 1; // From np.convolve(..., 'full')
                         (IntoDimension::into_dimension(tmp), tmp)
                     };
@@ -291,7 +274,7 @@ macro_rules! lfilter_for_dim {
                     }
 
                     let (out_dim, out_dim_inner) = {
-                        let tmp: [Ix; $N] = ndarray_shape_as_array(&x);
+                        let tmp: [Ix; $N] = ndarray_shape_as_array_st(&x);
                         (IntoDimension::into_dimension(tmp), tmp)
                     };
                     let mut out = ArrayBase::zeros(out_dim);
@@ -345,7 +328,7 @@ macro_rules! lfilter_for_dim {
                     // one extra heap allocation.
 
                     let (out_dim, out_dim_inner): (Dim<_>, [Ix; $N]) = {
-                        let mut tmp: [Ix; $N] = ndarray_shape_as_array(&x);
+                        let mut tmp: [Ix; $N] = ndarray_shape_as_array_st(&x);
                         (IntoDimension::into_dimension(tmp), tmp)
                     };
                     let mut out = ArrayBase::zeros(out_dim);

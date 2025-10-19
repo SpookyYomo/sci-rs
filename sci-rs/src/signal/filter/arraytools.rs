@@ -243,6 +243,81 @@ where
     Ok(a.slice(&sl))
 }
 
+/// Reverse the 1-D slices (aka lanes) of `a` along axis `axis`.
+///
+/// Returns axis_slice(a, step=-1, axis=axis).
+///
+/// # Parameters
+/// * `a`: Array being sliced from.
+/// * `axis`: `Option<isize>`. None defaults to -1.
+pub fn axis_reverse<A, S, D>(
+    a: &ArrayBase<S, D>,
+    axis: Option<isize>,
+) -> Result<ArrayView<'_, A, D>>
+where
+    S: Data<Elem = A>,
+    D: Dimension,
+    SliceInfo<Vec<SliceInfoElem>, D, D>: SliceArg<D, OutDim = D>,
+{
+    let ndim = D::NDIM.unwrap_or(a.ndim());
+
+    let axis = {
+        if axis.is_some_and(|axis| {
+            !(if axis < 0 {
+                axis.unsigned_abs() <= ndim
+            } else {
+                axis.unsigned_abs() < ndim
+            })
+        }) {
+            return Err(Error::InvalidArg {
+                arg: "axis".into(),
+                reason: "index out of range.".into(),
+            });
+        }
+
+        // We make a best effort to convert into appropriate usize.
+        let axis: isize = axis.unwrap_or(-1);
+        if axis >= 0 {
+            axis.unsigned_abs()
+        } else {
+            a.ndim()
+                .checked_add_signed(axis)
+                .expect("Invalid add to `axis` option")
+        }
+    };
+
+    unsafe { axis_slice_unsafe(a, None, None, Some(-1), axis, ndim) }
+}
+
+/// Reverse the 1-D slices (aka lanes) of `a` along axis `axis`.
+///
+/// Returns axis_slice(a, step=-1, axis=axis).
+///
+/// # Parameters
+/// * `a`: Array being sliced from.
+/// * `axis`: `usize`.
+/// * `a_ndim`: Dimensionality of `a`. This strictly has to be `a.ndim()`.
+///
+/// # Panics
+/// If axis is out of bounds, and dimensions are wrong.
+#[inline]
+pub(crate) unsafe fn axis_reverse_unsafe<A, S, D>(
+    a: &ArrayBase<S, D>,
+    axis: usize,
+    a_ndim: usize,
+) -> ArrayView<'_, A, D>
+where
+    S: Data<Elem = A>,
+    D: Dimension,
+    SliceInfo<Vec<SliceInfoElem>, D, D>: SliceArg<D, OutDim = D>,
+{
+    unsafe {
+        let r = axis_slice_unsafe(a, None, None, Some(-1), axis, a_ndim);
+        debug_assert!(r.is_ok());
+        r.unwrap_unchecked()
+    }
+}
+
 #[cfg(test)]
 mod test {
     use super::*;

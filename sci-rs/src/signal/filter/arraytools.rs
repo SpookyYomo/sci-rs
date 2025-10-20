@@ -211,7 +211,7 @@ where
 
     let coerce = |idx: Option<isize>, def_pos: isize, def_neg: isize| -> isize {
         match idx {
-            Some(i) if i < 0 => (axis_len + i).max(0),
+            Some(i) if i.is_negative() => (axis_len + i),
             Some(i) => i.min(axis_len),
             None => {
                 if !step.is_negative() {
@@ -228,7 +228,7 @@ where
         if step.is_negative() {
             (end + 1, Some(start + 1))
         } else {
-            (start, Some(end))
+            (start, Some(end)) // No + 1 breaking into axis_len
         }
     };
 
@@ -349,6 +349,20 @@ mod test {
         assert_eq!(
             axis_slice(&a, Some(-2), Some(-4), Some(-1), None).unwrap(),
             array![[4, 3], [9, 4]]
+        );
+    }
+
+    /// Tests on IxN arrays with negative indices.
+    #[test]
+    fn axis_slice_neg_indices_weird() {
+        let a = array![1, 2, 3, 4];
+        assert_eq!(
+            unsafe { axis_slice(&a, Some(-2), Some(-5), Some(-1), None) }.unwrap(),
+            array![3, 2, 1]
+        );
+        assert_eq!(
+            unsafe { axis_slice_unsafe(&a, Some(-2), Some(-5), Some(-1), 0, a.ndim()) }.unwrap(),
+            array![3, 2, 1]
         );
     }
 

@@ -192,6 +192,89 @@ where
     Ok((edge, ext))
 }
 
+/// Implement filtfilt for fixed dimension of input array `x`.
+///
+/// Valid only from 1 to 6 dimensional arrays.
+///
+/// Note: FiltFilt gust is a separate function not yet implemented.
+// Note: Usage of trait and macro for implementation is an inherited from LFilter.
+// LFilter for supertrait?
+pub trait FiltFilt<S, T, const N: usize>
+where
+    S: Data<Elem = T>,
+{
+    /// Apply a digital filter forward and backward to a signal.
+    ///
+    /// This function applies a linear digital filter twice, once forward and
+    /// once backwards.  The combined filter has zero phase and a filter order
+    /// twice that of the original.
+    ///
+    /// The function provides options for handling the edges of the signal.
+    ///
+    /// The function `sosfiltfilt` (and filter design using ``output='sos'``)
+    /// should be preferred over `filtfilt` for most filtering tasks, as
+    /// second-order sections have fewer numerical problems.
+    ///
+    /// # Parameters
+    /// * `b`: (N,) array_like  
+    ///   The numerator coefficient vector of the filter.
+    /// * `a`: (N,) array_like  
+    ///   The denominator coefficient vector of the filter.  If ``a[0]``
+    ///   is not 1, then both `a` and `b` are normalized b:y ``a[0]``.
+    /// * `x`: array_like  
+    ///   The array of data to be filtered.
+    /// * `axis`: int, optional  
+    ///   The axis of `x` to which the filter is applied.  
+    ///   Default is -1.
+    /// * `pad`
+    ///   [Option::None] here denotes a deliberate absence of padding.
+    ///   * `padtype` [FiltFiltPadType]
+    ///     Must be 'odd', 'even', 'constant', or None.  
+    ///     This determines the type of extension to use for the padded signal to which the filter is applied.  
+    ///     The default is 'odd'.
+    ///   * `padlen` int or None, optional  
+    ///     The number of elements by which to extend `x` at both ends of `axis` before applying
+    ///     the filter.  
+    ///     This value must be less than ``x.shape[axis] - 1``.  ``padlen=0`` implies no padding. [Option::None] here denotes the default value.  
+    ///     The default value is ``3 * max(len(a), len(b))``.
+    ///
+    /// # Returns
+    /// * y : `Array`
+    ///   The filtered output with the same shape as `x`.
+    ///
+    /// # See Also
+    /// sosfiltfilt, lfilter_zi, lfilter, lfiltic, savgol_filter, sosfilt, filtfilt_gust
+    ///
+    /// # Notes
+    /// When `method` is "pad", the function pads the data along the given axis in one of three
+    /// ways: odd, even or constant.  The odd and even extensions have the corresponding symmetry
+    /// about the end point of the data.  The constant extension extends the data with the values
+    /// at the end points. On both the forward and backward passes, the initial condition of the
+    /// filter is found by using `lfilter_zi` and scaling it by the end point of the extended data.
+    fn filtfilt<'a>(
+        b: ArrayView1<'a, T>,
+        a: ArrayView1<'a, T>,
+        x: Self,
+        axis: Option<isize>,
+        padding: Option<FiltFiltPad>,
+    ) -> Result<Array<T, Dim<[Ix; N]>>>;
+
+    /// Forward-back IIR filter that uses Gustafsson's method.
+    ///
+    /// Not yet implemented.
+    fn filtfilt_gust<'a>(
+        b: ArrayView1<'a, T>,
+        a: ArrayView1<'a, T>,
+        x: Self,
+        axis: Option<isize>,
+        irlen: Option<usize>,
+    ) -> Result<Array<T, Dim<[Ix; N]>>>
+    where
+        Self: Sized,
+    {
+        todo!("Gust method of FiltFilt is not yet implemented.");
+    }
+}
 #[cfg(test)]
 mod test {
     use super::*;

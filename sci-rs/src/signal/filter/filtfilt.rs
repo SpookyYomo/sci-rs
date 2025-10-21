@@ -279,7 +279,8 @@ where
 mod test {
     use super::*;
     use alloc::vec;
-    use ndarray::array;
+    use approx::assert_relative_eq;
+    use ndarray::{array, Zip};
 
     /// Test odd_ext as from documentation.
     #[test]
@@ -459,5 +460,150 @@ mod test {
 
         assert_eq!(result_edge, expected_edge);
         assert_eq!(result, expected);
+    }
+
+    /// Tests that filtfilt works with no padding with a FIR filter.
+    #[test]
+    fn filtfilt_2d_fir_none_pad() {
+        let b = array![0.1, 0.2, 0.1, -0.3, 0.2, 0.4, 0.2, 0.1];
+        let a = array![1.];
+        let x = {
+            let rows_n = 40;
+            let mut x = Array::zeros((2, rows_n));
+            x.row_mut(0)
+                .assign(&Array::linspace(1 as _, rows_n as _, rows_n));
+            x.row_mut(1)
+                .assign(&Array::from_iter((0..rows_n).map(|i| (i as f64).powi(2))));
+
+            x
+        };
+        let result = Array::<_, Dim<[_; 2]>>::filtfilt(b.view(), a.view(), x, Some(1), None)
+            .expect("Could not filtfilt none_pad");
+        let expected = array![
+            [
+                2.14, 2.84, 3.67, 4.43, 5.2, 6.06, 7.01, 8., 9., 10., 11., 12., 13., 14., 15., 16.,
+                17., 18., 19., 20., 21., 22., 23., 24., 25., 26., 27., 28., 29., 30., 31., 32.,
+                33., 33.9, 34.6, 34.9, 35., 35.4, 35.7, 35.8
+            ],
+            [
+                5.56, 8.54, 13.05, 19.15, 26.78, 36.04, 47.11, 60.12, 75.12, 92.12, 111.12, 132.12,
+                155.12, 180.12, 207.12, 236.12, 267.12, 300.12, 335.12, 372.12, 411.12, 452.12,
+                495.12, 540.12, 587.12, 636.12, 687.12, 740.12, 795.12, 852.12, 911.12, 972.12,
+                1035.12, 1093.06, 1138.68, 1157.46, 1162.72, 1189.36, 1209.74, 1216.6
+            ]
+        ];
+
+        Zip::from(&result)
+            .and(&expected)
+            .for_each(|&r, &e| assert_relative_eq!(r, e, max_relative = 1e-6));
+    }
+
+    /// Tests that filtfilt works with some padding with a FIR filter.
+    #[test]
+    fn filtfilt_2d_fir_some_pad() {
+        let b = array![0.1, 0.2, 0.1, -0.3, 0.2, 0.4, 0.2, 0.1];
+        let a = array![1.];
+        let x = {
+            let rows_n = 40;
+            let mut x = Array::zeros((2, rows_n));
+            x.row_mut(0)
+                .assign(&Array::linspace(1 as _, rows_n as _, rows_n));
+            x.row_mut(1)
+                .assign(&Array::from_iter((0..rows_n).map(|i| (i as f64).powi(2))));
+
+            x
+        };
+        let pad_arg = FiltFiltPad {
+            pad_type: FiltFiltPadType::default(),
+            len: Some(4),
+        };
+        let result =
+            Array::<_, Dim<[_; 2]>>::filtfilt(b.view(), a.view(), x, Some(1), Some(pad_arg))
+                .expect("Could not filtfilt none_pad");
+        let expected = array![
+            [
+                1.2, 2.06, 3.01, 4., 5., 6., 7., 8., 9., 10., 11., 12., 13., 14., 15., 16., 17.,
+                18., 19., 20., 21., 22., 23., 24., 25., 26., 27., 28., 29., 30., 31., 32., 33.,
+                34., 35., 36., 37., 37.9, 38.6, 38.9
+            ],
+            [
+                1.94, 5.52, 11.07, 18.18, 26.44, 35.96, 47.1, 60.12, 75.12, 92.12, 111.12, 132.12,
+                155.12, 180.12, 207.12, 236.12, 267.12, 300.12, 335.12, 372.12, 411.12, 452.12,
+                495.12, 540.12, 587.12, 636.12, 687.12, 740.12, 795.12, 852.12, 911.12, 972.12,
+                1035.12, 1100.1, 1166.96, 1235.44, 1305.18, 1368.54, 1418.2, 1439.28
+            ]
+        ];
+
+        Zip::from(&result)
+            .and(&expected)
+            .for_each(|&r, &e| assert_relative_eq!(r, e, max_relative = 1e-6));
+    }
+
+    /// Tests that filtfilt works with default padding with a FIR filter.
+    #[test]
+    fn filtfilt_2d_fir_default_pad() {
+        let b = array![0.1, 0.2, 0.1, -0.3, 0.2, 0.4, 0.2, 0.1];
+        let a = array![1.];
+        let x = {
+            let rows_n = 40;
+            let mut x = Array::zeros((2, rows_n));
+            x.row_mut(0)
+                .assign(&Array::linspace(1 as _, rows_n as _, rows_n));
+            x.row_mut(1)
+                .assign(&Array::from_iter((0..rows_n).map(|i| (i as f64).powi(2))));
+
+            x
+        };
+        let result = Array::<_, Dim<[_; 2]>>::filtfilt(
+            b.view(),
+            a.view(),
+            x,
+            Some(1),
+            Some(FiltFiltPad::default()),
+        )
+        .expect("Could not filtfilt none_pad");
+        let expected = array![
+            [
+                1., 2., 3., 4., 5., 6., 7., 8., 9., 10., 11., 12., 13., 14., 15., 16., 17., 18.,
+                19., 20., 21., 22., 23., 24., 25., 26., 27., 28., 29., 30., 31., 32., 33., 34.,
+                35., 36., 37., 38., 39., 40.
+            ],
+            [
+                0., 4.96, 10.98, 18.18, 26.44, 35.96, 47.1, 60.12, 75.12, 92.12, 111.12, 132.12,
+                155.12, 180.12, 207.12, 236.12, 267.12, 300.12, 335.12, 372.12, 411.12, 452.12,
+                495.12, 540.12, 587.12, 636.12, 687.12, 740.12, 795.12, 852.12, 911.12, 972.12,
+                1035.12, 1100.1, 1166.96, 1235.44, 1305.18, 1375.98, 1447.96, 1521.
+            ]
+        ];
+
+        Zip::from(&result)
+            .and(&expected)
+            .for_each(|&r, &e| assert_relative_eq!(r, e, max_relative = 1e-6, epsilon = 1e-10));
+    }
+
+    /// Tests that is an error if the specified padding is a lot longer than the array.
+    #[test]
+    fn filfilt_2d_fir_limit() {
+        let b = array![0.1, 0.2, 0.1, -0.3, 0.2, 0.4, 0.2, 0.1];
+        let a = array![1.];
+        let x = {
+            let rows_n = 4;
+            let mut x = Array::zeros((2, rows_n));
+            x.row_mut(0)
+                .assign(&Array::linspace(1 as _, rows_n as _, rows_n));
+            x.row_mut(1)
+                .assign(&Array::from_iter((0..rows_n).map(|i| (i as f64).powi(2))));
+
+            x
+        };
+        let result = Array::<_, Dim<[_; 2]>>::filtfilt(
+            b.view(),
+            a.view(),
+            x,
+            Some(1),
+            Some(FiltFiltPad::default()),
+        );
+
+        assert!(result.is_err());
     }
 }

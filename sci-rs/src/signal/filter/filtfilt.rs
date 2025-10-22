@@ -1,4 +1,8 @@
-use super::{axis_slice_unsafe, check_and_get_axis_dyn};
+use super::arraytools::{
+    axis_reverse_unsafe, axis_slice_unsafe, check_and_get_axis_dyn, ndarray_shape_as_array_st,
+};
+use super::lfilter::LFilter;
+use super::lfilter_zi::lfilter_zi_dyn;
 use alloc::{vec, vec::Vec};
 use core::ops::{Add, Sub};
 use ndarray::{
@@ -242,6 +246,41 @@ where
     /// * y : `Array`
     ///   The filtered output with the same shape as `x`.
     ///
+    /// # Example
+    /// The following examples shows how to use an arbitrary FIR filter on a 2-dimensional input
+    /// `x`.
+    /// ```
+    /// use sci_rs::signal::filter::{FiltFilt, FiltFiltPad};
+    /// use ndarray::{array, Array2, ArrayView2};
+    ///     let x = array![
+    ///         [1., 2., 3., 4., 5., 6., 7., 8., 9., 10.],
+    ///         [0., 1., 4., 9., 16., 25., 36., 49., 64., 81.]
+    ///     ];
+    /// let b = array![0.5, 0.4, 0.1];
+    /// let a = array![1.];
+    /// let _ = ArrayView2::filtfilt(
+    ///     b.view(),
+    ///     a.view(),
+    ///     x.view(), // Pass x by reference
+    ///     Some(1),
+    ///     Some(FiltFiltPad::default())).unwrap();
+    /// let result = Array2::filtfilt(
+    ///     b.view(),
+    ///     a.view(),
+    ///     x, // Pass x by value
+    ///     Some(1),
+    ///     Some(FiltFiltPad::default())).unwrap();
+    ///
+    /// use approx::assert_relative_eq;
+    /// use ndarray::Zip;
+    /// let expected = array![
+    ///     [1., 2., 3., 4., 5., 6., 7., 8., 9., 10.],
+    ///     [0., 1.78, 4.88, 9.88, 16.88, 25.88, 36.88, 49.88, 64.78, 81.]
+    /// ];
+    /// Zip::from(&result).and(&expected)
+    ///     .for_each(|&r, &e| assert_relative_eq!(r, e, max_relative = 1e-6));
+    /// ```
+    ///
     /// # See Also
     /// sosfiltfilt, lfilter_zi, lfilter, lfiltic, savgol_filter, sosfilt, filtfilt_gust
     ///
@@ -257,7 +296,11 @@ where
         x: Self,
         axis: Option<isize>,
         padding: Option<FiltFiltPad>,
-    ) -> Result<Array<T, Dim<[Ix; N]>>>;
+    ) -> Result<Array<T, Dim<[Ix; N]>>>
+    where
+        T: Clone + Add<T, Output = T> + Sub<T, Output = T> + num_traits::One,
+        Dim<[Ix; N]>: Dimension,
+        T: nalgebra::RealField + Copy + core::iter::Sum; // From lfilter_zi_dyn
 
     /// Forward-back IIR filter that uses Gustafsson's method.
     ///
@@ -275,6 +318,97 @@ where
         todo!("Gust method of FiltFilt is not yet implemented.");
     }
 }
+
+impl<S, T> FiltFilt<S, T, 2> for ArrayBase<S, Dim<[Ix; 2]>>
+where
+    S: Data<Elem = T>,
+{
+    fn filtfilt<'a>(
+        b: ArrayView1<'a, T>,
+        a: ArrayView1<'a, T>,
+        x: Self,
+        axis: Option<isize>,
+        padding: Option<FiltFiltPad>,
+    ) -> Result<Array<T, Dim<[Ix; 2]>>>
+    where
+        T: Clone + Add<T, Output = T> + Sub<T, Output = T> + num_traits::One,
+        Dim<[Ix; 2]>: Dimension,
+        T: nalgebra::RealField + Copy + core::iter::Sum, // From lfilter_zi_dyn
+    {
+        let axis = {
+            if axis.is_some_and(|axis| {
+                !(if axis < 0 {
+                    axis.unsigned_abs() <= 2
+                } else {
+                    axis.unsigned_abs() < 2
+                })
+            }) {
+                return Err(Error::InvalidArg {
+                    arg: "axis".into(),
+                    reason: "index out of range.".into(),
+                });
+            }
+
+            // We make a best effort to convert into appropriate usize.
+            let axis: isize = axis.unwrap_or(-1);
+            if axis >= 0 {
+                axis.unsigned_abs()
+            } else {
+                a.ndim()
+                    .checked_add_signed(axis)
+                    .expect("Invalid add to `axis` option")
+            }
+        };
+        let (edge, ext) = validate_pad(padding, x.view(), axis, a.len().max(b.len()))?;
+
+        let zi: Array<T, Dim<[Ix; 2]>> = {
+            let mut zi = lfilter_zi_dyn(b.as_slice().unwrap(), a.as_slice().unwrap());
+            let mut sh = [1; 2];
+            sh[axis] = zi.len(); // .size()?
+
+            zi.into_shape_with_order(sh)
+                .map_err(|_| Error::InvalidArg {
+                    arg: "b/a".into(),
+                    reason: "Generated lfilter_zi from given b or a resulted in an error.".into(),
+                })?
+        };
+        let (y, _) = {
+            let x0 = axis_slice_unsafe(&ext, None, Some(1), None, axis, ext.ndim())?;
+            let zi_arg = zi.clone() * x0; // Is it possible to not need to clone?
+            ArrayBase::<_, Dim<[Ix; 2]>>::lfilter(
+                b.view(),
+                a.view(),
+                ext,
+                Some(axis as _),
+                Some(zi_arg.view()),
+            )?
+        };
+
+        let (y, _) = {
+            let y0 = axis_slice_unsafe(&y, Some(-1), None, None, axis, y.ndim())?;
+            let zi_arg = zi * y0; // originally zi * y0
+            ArrayView::<T, Dim<[Ix; 2]>>::lfilter(
+                b.view(),
+                a.view(),
+                unsafe { axis_reverse_unsafe(&y, axis, 2) },
+                Some(axis as _),
+                Some(zi_arg.view()),
+            )?
+        };
+
+        let y = unsafe { axis_reverse_unsafe(&y, axis, 2) };
+
+        if edge > 0 {
+            let y = unsafe {
+                axis_slice_unsafe(&y, Some(edge as _), Some(-(edge as isize)), None, axis, 2)
+            }?;
+            Ok(y.to_owned())
+        } else {
+            Ok(y.to_owned())
+        }
+    }
+}
+
 #[cfg(test)]
 mod test {
     use super::*;

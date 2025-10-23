@@ -319,95 +319,94 @@ where
     }
 }
 
-impl<S, T> FiltFilt<S, T, 2> for ArrayBase<S, Dim<[Ix; 2]>>
-where
-    S: Data<Elem = T>,
-{
-    fn filtfilt<'a>(
-        b: ArrayView1<'a, T>,
-        a: ArrayView1<'a, T>,
-        x: Self,
-        axis: Option<isize>,
-        padding: Option<FiltFiltPad>,
-    ) -> Result<Array<T, Dim<[Ix; 2]>>>
-    where
-        T: Clone + Add<T, Output = T> + Sub<T, Output = T> + num_traits::One,
-        Dim<[Ix; 2]>: Dimension,
-        T: nalgebra::RealField + Copy + core::iter::Sum, // From lfilter_zi_dyn
-    {
-        let axis = {
-            if axis.is_some_and(|axis| {
-                !(if axis < 0 {
-                    axis.unsigned_abs() <= 2
-                } else {
-                    axis.unsigned_abs() < 2
-                })
-            }) {
-                return Err(Error::InvalidArg {
+macro_rules! filtfilt_for_dim {
+    ($N: literal) => {
+        impl<S, T> FiltFilt<S, T, $N> for ArrayBase<S, Dim<[Ix; $N]>>
+        where
+            S: Data<Elem = T>,
+        {
+            fn filtfilt<'a>(
+                b: ArrayView1<'a, T>,
+                a: ArrayView1<'a, T>,
+                x: Self,
+                axis: Option<isize>,
+                padding: Option<FiltFiltPad>,
+            ) -> Result<Array<T, Dim<[Ix; $N]>>>
+            where
+                T: Clone + Add<T, Output = T> + Sub<T, Output = T> + num_traits::One,
+                Dim<[Ix; $N]>: Dimension,
+                T: nalgebra::RealField + Copy + core::iter::Sum, // From lfilter_zi_dyn
+            {
+                let axis = check_and_get_axis_dyn(axis, &x).map_err(|_| Error::InvalidArg {
                     arg: "axis".into(),
                     reason: "index out of range.".into(),
-                });
+                })?;
+                let (edge, ext) = validate_pad(padding, x.view(), axis, a.len().max(b.len()))?;
+
+                let zi: Array<T, Dim<[Ix; $N]>> = {
+                    let mut zi = lfilter_zi_dyn(b.as_slice().unwrap(), a.as_slice().unwrap());
+                    let mut sh = [1; $N];
+                    sh[axis] = zi.len(); // .size()?
+
+                    zi.into_shape_with_order(sh)
+                        .map_err(|_| Error::InvalidArg {
+                            arg: "b/a".into(),
+                            reason: "Generated lfilter_zi from given b or a resulted in an error."
+                                .into(),
+                        })?
+                };
+                let (y, _) = {
+                    let x0 = axis_slice_unsafe(&ext, None, Some(1), None, axis, ext.ndim())?;
+                    let zi_arg = zi.clone() * x0; // Is it possible to not need to clone?
+                    ArrayBase::<_, Dim<[Ix; $N]>>::lfilter(
+                        b.view(),
+                        a.view(),
+                        ext,
+                        Some(axis as _),
+                        Some(zi_arg.view()),
+                    )?
+                };
+
+                let (y, _) = {
+                    let y0 = axis_slice_unsafe(&y, Some(-1), None, None, axis, y.ndim())?;
+                    let zi_arg = zi * y0; // originally zi * y0
+                    ArrayView::<T, Dim<[Ix; $N]>>::lfilter(
+                        b.view(),
+                        a.view(),
+                        unsafe { axis_reverse_unsafe(&y, axis, $N) },
+                        Some(axis as _),
+                        Some(zi_arg.view()),
+                    )?
+                };
+
+                let y = unsafe { axis_reverse_unsafe(&y, axis, $N) };
+
+                if edge > 0 {
+                    let y = unsafe {
+                        axis_slice_unsafe(
+                            &y,
+                            Some(edge as _),
+                            Some(-(edge as isize)),
+                            None,
+                            axis,
+                            $N,
+                        )
+                    }?;
+                    Ok(y.to_owned())
+                } else {
+                    Ok(y.to_owned())
+                }
             }
-
-            // We make a best effort to convert into appropriate usize.
-            let axis: isize = axis.unwrap_or(-1);
-            if axis >= 0 {
-                axis.unsigned_abs()
-            } else {
-                a.ndim()
-                    .checked_add_signed(axis)
-                    .expect("Invalid add to `axis` option")
-            }
-        };
-        let (edge, ext) = validate_pad(padding, x.view(), axis, a.len().max(b.len()))?;
-
-        let zi: Array<T, Dim<[Ix; 2]>> = {
-            let mut zi = lfilter_zi_dyn(b.as_slice().unwrap(), a.as_slice().unwrap());
-            let mut sh = [1; 2];
-            sh[axis] = zi.len(); // .size()?
-
-            zi.into_shape_with_order(sh)
-                .map_err(|_| Error::InvalidArg {
-                    arg: "b/a".into(),
-                    reason: "Generated lfilter_zi from given b or a resulted in an error.".into(),
-                })?
-        };
-        let (y, _) = {
-            let x0 = axis_slice_unsafe(&ext, None, Some(1), None, axis, ext.ndim())?;
-            let zi_arg = zi.clone() * x0; // Is it possible to not need to clone?
-            ArrayBase::<_, Dim<[Ix; 2]>>::lfilter(
-                b.view(),
-                a.view(),
-                ext,
-                Some(axis as _),
-                Some(zi_arg.view()),
-            )?
-        };
-
-        let (y, _) = {
-            let y0 = axis_slice_unsafe(&y, Some(-1), None, None, axis, y.ndim())?;
-            let zi_arg = zi * y0; // originally zi * y0
-            ArrayView::<T, Dim<[Ix; 2]>>::lfilter(
-                b.view(),
-                a.view(),
-                unsafe { axis_reverse_unsafe(&y, axis, 2) },
-                Some(axis as _),
-                Some(zi_arg.view()),
-            )?
-        };
-
-        let y = unsafe { axis_reverse_unsafe(&y, axis, 2) };
-
-        if edge > 0 {
-            let y = unsafe {
-                axis_slice_unsafe(&y, Some(edge as _), Some(-(edge as isize)), None, axis, 2)
-            }?;
-            Ok(y.to_owned())
-        } else {
-            Ok(y.to_owned())
         }
-    }
+    };
 }
+
+filtfilt_for_dim!(1);
+filtfilt_for_dim!(2);
+filtfilt_for_dim!(3);
+filtfilt_for_dim!(4);
+filtfilt_for_dim!(5);
+filtfilt_for_dim!(6);
 
 #[cfg(test)]
 mod test {
@@ -594,6 +593,67 @@ mod test {
 
         assert_eq!(result_edge, expected_edge);
         assert_eq!(result, expected);
+    }
+
+    /// Tests that filtfilt works with default padding with a FIR filter.
+    #[test]
+    fn filtfilt_1d_fir_default_pad_small() {
+        let x =
+            array![0., 0.6389613, 0.890577, 0.9830277, 0.9992535, 0.9756868, 0.9304659, 0.8734051];
+        let b = array![0.5, 0.5];
+        let a = array![1.];
+        let result = Array::<_, Dim<[_; 1]>>::filtfilt(
+            b.view(),
+            a.view(),
+            x,
+            None,
+            Some(FiltFiltPad::default()),
+        )
+        .expect("Could not filtfilt none_pad");
+        let expected =
+            array![0., 0.5421249, 0.8507858, 0.9639715, 0.9893054, 0.9702733, 0.9275059, 0.8734051];
+        Zip::from(&result)
+            .and(&expected)
+            .for_each(|&r, &e| assert_relative_eq!(r, e, max_relative = 1e-6, epsilon = 1e-10));
+    }
+
+    /// Tests that filtfilt works with default padding with a FIR filter.
+    #[test]
+    fn filtfilt_1d_fir_default_pad_big() {
+        // n_elems = 25
+        // x = np.sin(np.log(np.linspace(1., n_elems, n_elems)))
+        // b = firwin(8, 0.2)
+        // a = np.array([1.])
+        // expected = filtfilt(b, a, x)
+
+        let x = array![
+            0., 0.6389613, 0.890577, 0.9830277, 0.9992535, 0.9756868, 0.9304659, 0.8734051,
+            0.8101266, 0.7439803, 0.6770137, 0.6104955, 0.5452131, 0.481649, 0.4200881, 0.3606866,
+            0.3035148, 0.2485867, 0.1958789, 0.1453437, 0.0969178, 0.0505287, 0.0060984,
+            -0.0364531, -0.0772063
+        ];
+        let b = array![
+            0.0087547, 0.0479489, 0.1640244, 0.279272, 0.279272, 0.1640244, 0.0479489, 0.0087547
+        ];
+        let a = array![1.];
+        let result = Array::<_, Dim<[_; 1]>>::filtfilt(
+            b.view(),
+            a.view(),
+            x,
+            None,
+            Some(FiltFiltPad::default()),
+        )
+        .expect("Could not filtfilt none_pad");
+        let expected = array![
+            0., 0.3503788, 0.6340265, 0.8172474, 0.9055143, 0.9253101, 0.9036955, 0.8594274,
+            0.8033733, 0.7414859, 0.6771011, 0.6121664, 0.5478511, 0.4848631, 0.4236259, 0.3643826,
+            0.3072603, 0.25231, 0.1995331, 0.1488972, 0.1003401, 0.0537529, 0.0089268, -0.0345238,
+            -0.0772063
+        ];
+
+        Zip::from(&result)
+            .and(&expected)
+            .for_each(|&r, &e| assert_relative_eq!(r, e, max_relative = 1e-5, epsilon = 1e-10));
     }
 
     /// Tests that filtfilt works with no padding with a FIR filter.

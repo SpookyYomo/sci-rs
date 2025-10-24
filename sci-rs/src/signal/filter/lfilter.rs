@@ -237,7 +237,8 @@ macro_rules! lfilter_for_dim {
                         (IntoDimension::into_dimension(tmp), tmp)
                     };
 
-                    let mut out_full: Array<T, Dim<[Ix; $N]>> = ArrayBase::zeros(out_full_dim);
+                    // Safety: All elements are overwritten by convolve in subsequent step.
+                    let mut out_full = unsafe { Array::uninit(out_full_dim).assume_init() };
                     out_full
                         .lanes_mut(axis)
                         .into_iter()
@@ -277,7 +278,8 @@ macro_rules! lfilter_for_dim {
                         let tmp: [Ix; $N] = ndarray_shape_as_array_st(&x);
                         (IntoDimension::into_dimension(tmp), tmp)
                     };
-                    let mut out = ArrayBase::zeros(out_dim);
+                    // Safety: All elements are overwritten by convolve in subsequent step.
+                    let mut out = unsafe { Array::uninit(out_dim).assume_init() };
                     out.lanes_mut(axis)
                         .into_iter()
                         .zip(out_full.lanes(axis))
@@ -331,7 +333,8 @@ macro_rules! lfilter_for_dim {
                         let mut tmp: [Ix; $N] = ndarray_shape_as_array_st(&x);
                         (IntoDimension::into_dimension(tmp), tmp)
                     };
-                    let mut out = ArrayBase::zeros(out_dim);
+                    // Safety: All elements are overwritten by convolve in subsequent step.
+                    let mut out = unsafe { Array::uninit(out_dim).assume_init() };
 
                     out.lanes_mut(axis)
                         .into_iter()
@@ -618,7 +621,8 @@ where
             let tmp = x.shape();
             (IntoDimension::into_dimension(tmp), tmp)
         };
-        let mut out = ArrayBase::zeros(out_dim);
+        // Safety: All elements are overwritten by convolve in subsequent step.
+        let mut out = unsafe { Array::uninit(out_dim).assume_init() };
         out.lanes_mut(axis)
             .into_iter()
             .zip(out_full.lanes(axis))
@@ -672,7 +676,7 @@ where
             let tmp = x.shape();
             (IntoDimension::into_dimension(tmp), tmp)
         };
-        let mut out = ArrayBase::zeros(out_dim);
+        let mut out = unsafe { Array::uninit(out_dim).assume_init() }; // Safety: All elements are overwritten by convolve in subsequent step.
 
         out.lanes_mut(axis)
             .into_iter()

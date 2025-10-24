@@ -55,3 +55,7 @@ harness = false
 [[bench]]
 name = "lfilter"
 harness = false
+
+[[bench]]
+name = "filtfilt"
+harness = false

@@ -17,23 +17,71 @@ type LFilterDynResult<T, D> = (Array<T, D>, Option<Array<T, D>>);
 /// # Parameters
 /// axis: The user-specificed axis which filter is to be applied on.
 /// x: The input-data whose axis object that will be manipulated against.
-fn check_and_get_axis_st<'a, T, S, const N: usize>(
+///
+/// # Notes
+/// Const nature of this function means error has to be manually created.
+#[inline]
+const fn check_and_get_axis_st<'a, T, S, const N: usize>(
     axis: Option<isize>,
     x: &ArrayBase<S, Dim<[Ix; N]>>,
-) -> Result<(Axis, usize)>
+) -> core::result::Result<(Axis, usize), ()>
 where
-    [Ix; N]: IntoDimension<Dim = Dim<[Ix; N]>>,
-    Dim<[Ix; N]>: RemoveAxis,
-    T: NumAssign + FromPrimitive + Copy + 'a,
     S: Data<Elem = T> + 'a,
 {
     // Before we convert into the appropriate axis object, we have to check at runtime that the
     // axis value specified is within -N <= axis < N.
+    match axis {
+        None => (),
+        Some(axis) if axis.is_negative() => {
+            if axis.unsigned_abs() > N {
+                return Err(());
+            }
+        }
+        Some(axis) => {
+            if axis.unsigned_abs() >= N {
+                return Err(());
+            }
+        }
+    }
+
+    // We make a best effort to convert into appropriate axis object.
+    let axis_inner: isize = match axis {
+        Some(axis) => axis,
+        None => -1,
+    };
+    if axis_inner >= 0 {
+        Ok((Axis(axis_inner as usize), axis_inner.unsigned_abs()))
+    } else {
+        let axis_inner = N
+            .checked_add_signed(axis_inner)
+            .expect("Invalid add to `axis` option");
+        Ok((Axis(axis_inner), axis_inner))
+    }
+}
+
+/// Internal function for casting into [Axis] and appropriate usize from isize.
+/// [check_and_get_axis_st] but without const, especially for IxDyn arrays.
+///
+/// # Parameters
+/// axis: The user-specificed axis which filter is to be applied on.
+/// x: The input-data whose axis object that will be manipulated against.
+#[inline]
+fn check_and_get_axis_dyn<'a, T, S, D>(
+    axis: Option<isize>,
+    x: &ArrayBase<S, D>,
+) -> Result<(Axis, usize)>
+where
+    D: Dimension,
+    S: Data<Elem = T> + 'a,
+{
+    let ndim = D::NDIM.unwrap_or(x.ndim());
+    // Before we convert into the appropriate axis object, we have to check at runtime that the
+    // axis value specified is within -N <= axis < N.
     if axis.is_some_and(|axis| {
         !(if axis < 0 {
-            axis.unsigned_abs() <= N
+            axis.unsigned_abs() <= ndim
         } else {
-            axis.unsigned_abs() < N
+            axis.unsigned_abs() < ndim
         })
     }) {
         return Err(Error::InvalidArg {
@@ -47,8 +95,7 @@ where
     if axis_inner >= 0 {
         Ok((Axis(axis_inner as usize), axis_inner.unsigned_abs()))
     } else {
-        let axis_inner = x
-            .ndim()
+        let axis_inner = ndim
             .checked_add_signed(axis_inner)
             .expect("Invalid add to `axis` option");
         Ok((Axis(axis_inner), axis_inner))
@@ -165,7 +212,11 @@ macro_rules! lfilter_for_dim {
                     return linear_filter(b, a, x, axis, zi);
                 };
 
-                let (axis, axis_inner) = check_and_get_axis_st(axis, &x)?;
+                let (axis, axis_inner) = check_and_get_axis_st(axis, &x)
+                    .map_err(|_| Error::InvalidArg {
+                        arg: "axis".into(),
+                        reason: "index out of range.".into(),
+                    })?;
 
                 if a.is_empty() {
                     return Err(Error::InvalidArg {

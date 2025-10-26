@@ -24,7 +24,7 @@ type LFilterDynResult<T, D> = (Array<T, D>, Option<Array<T, D>>);
 const fn check_and_get_axis_st<'a, T, S, const N: usize>(
     axis: Option<isize>,
     x: &ArrayBase<S, Dim<[Ix; N]>>,
-) -> core::result::Result<(Axis, usize), ()>
+) -> core::result::Result<usize, ()>
 where
     S: Data<Elem = T> + 'a,
 {
@@ -50,12 +50,12 @@ where
         None => -1,
     };
     if axis_inner >= 0 {
-        Ok((Axis(axis_inner as usize), axis_inner.unsigned_abs()))
+        Ok(axis_inner.unsigned_abs())
     } else {
         let axis_inner = N
             .checked_add_signed(axis_inner)
             .expect("Invalid add to `axis` option");
-        Ok((Axis(axis_inner), axis_inner))
+        Ok(axis_inner)
     }
 }
 
@@ -66,10 +66,7 @@ where
 /// axis: The user-specificed axis which filter is to be applied on.
 /// x: The input-data whose axis object that will be manipulated against.
 #[inline]
-fn check_and_get_axis_dyn<'a, T, S, D>(
-    axis: Option<isize>,
-    x: &ArrayBase<S, D>,
-) -> Result<(Axis, usize)>
+fn check_and_get_axis_dyn<'a, T, S, D>(axis: Option<isize>, x: &ArrayBase<S, D>) -> Result<usize>
 where
     D: Dimension,
     S: Data<Elem = T> + 'a,
@@ -93,12 +90,12 @@ where
     // We make a best effort to convert into appropriate axis object.
     let axis_inner: isize = axis.unwrap_or(-1);
     if axis_inner >= 0 {
-        Ok((Axis(axis_inner as usize), axis_inner.unsigned_abs()))
+        Ok(axis_inner.unsigned_abs())
     } else {
         let axis_inner = ndim
             .checked_add_signed(axis_inner)
             .expect("Invalid add to `axis` option");
-        Ok((Axis(axis_inner), axis_inner))
+        Ok(axis_inner)
     }
 }
 
@@ -212,11 +209,14 @@ macro_rules! lfilter_for_dim {
                     return linear_filter(b, a, x, axis, zi);
                 };
 
-                let (axis, axis_inner) = check_and_get_axis_st(axis, &x)
-                    .map_err(|_| Error::InvalidArg {
-                        arg: "axis".into(),
-                        reason: "index out of range.".into(),
-                    })?;
+                let (axis, axis_inner) = {
+                    let ax = check_and_get_axis_st(axis, &x)
+                        .map_err(|_| Error::InvalidArg {
+                            arg: "axis".into(),
+                            reason: "index out of range.".into(),
+                        })?;
+                    (Axis(ax), ax)
+                };
 
                 if a.is_empty() {
                     return Err(Error::InvalidArg {
@@ -518,7 +518,10 @@ where
         todo!();
     };
 
-    let (axis, axis_inner) = check_and_get_axis_dyn(axis, &x)?;
+    let (axis, axis_inner) = {
+        let ax = check_and_get_axis_dyn(axis, &x)?;
+        (Axis(ax), ax)
+    };
 
     if a.is_empty() {
         return Err(Error::InvalidArg {

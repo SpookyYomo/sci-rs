@@ -2,9 +2,8 @@ use super::arraytools::{check_and_get_axis_dyn, check_and_get_axis_st, ndarray_s
 use alloc::{vec, vec::Vec};
 use core::marker::Copy;
 use ndarray::{
-    Array, Array1, ArrayBase, ArrayD, ArrayView, ArrayView1, ArrayViewMut1, Axis, Data, Dim,
-    Dimension, IntoDimension, Ix, IxDyn, RemoveAxis, ShapeBuilder, SliceArg, SliceInfo,
-    SliceInfoElem,
+    Array, Array1, ArrayBase, ArrayD, ArrayView, ArrayView1, Axis, Data, Dim, Dimension,
+    IntoDimension, Ix, IxDyn, ShapeBuilder, SliceArg, SliceInfo, SliceInfoElem,
 };
 use num_traits::{FromPrimitive, Num, NumAssign};
 use sci_rs_core::{Error, Result};
@@ -93,8 +92,6 @@ where
         zi: Option<ArrayView<T, Dim<[Ix; N]>>>,
     ) -> Result<LFilterResult<T, N>>
     where
-        [Ix; N]: IntoDimension<Dim = Dim<[Ix; N]>>,
-        Dim<[Ix; N]>: RemoveAxis,
         T: NumAssign + FromPrimitive + Copy + 'a,
         S: Data<Elem = T> + 'a;
 }
@@ -113,8 +110,6 @@ macro_rules! lfilter_for_dim {
                 zi: Option<ArrayView<T, Dim<[Ix; $N]>>>,
             ) -> Result<(Array<T, Dim<[Ix; $N]>>, Option<Array<T, Dim<[Ix; $N]>>>)>
             where
-                [Ix; $N]: IntoDimension<Dim = Dim<[Ix; $N]>>,
-                Dim<[Ix; $N]>: RemoveAxis,
                 T: NumAssign + FromPrimitive + Copy + 'a,
                 S: 'a,
             {
@@ -415,7 +410,7 @@ pub fn lfilter<'a, T, S, D>(
 where
     S: Data<Elem = T> + 'a,
     T: NumAssign + FromPrimitive + Copy + 'a,
-    D: Dimension + RemoveAxis,
+    D: Dimension,
     SliceInfo<Vec<SliceInfoElem>, D, D>: SliceArg<D, OutDim = D>,
 {
     let ndim = D::NDIM.unwrap_or(x.ndim());
@@ -655,8 +650,8 @@ fn linear_filter<'a, T, S, D>(
     zi: Option<ArrayView<T, D>>,
 ) -> Result<LFilterDynResult<T, D>>
 where
-    D: Dimension + RemoveAxis,
-    T: NumAssign + FromPrimitive + Copy + 'a,
+    D: Dimension,
+    T: 'a,
     S: Data<Elem = T> + 'a,
 {
     todo!()

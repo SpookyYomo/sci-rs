@@ -62,7 +62,7 @@ fn randomized_signal(
 ///
 /// Use window asasociated with `decimate`'s default values, running at decimation factor = 500.
 fn lfilter_dyn(c: &mut Criterion) {
-    const DECIMATION_FACTOR: usize = 500;
+    const DECIMATION_FACTOR: usize = 50;
     const FILTER_ORDER: usize = DECIMATION_FACTOR * 20;
 
     // Finite impulse response from Hamming window;

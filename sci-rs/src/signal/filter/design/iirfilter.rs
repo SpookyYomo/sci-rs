@@ -275,7 +275,7 @@ where
         .map(|z| -(*z))
         .fold(Complex::new(F::one(), F::zero()), |acc, z| acc * z)
         .real();
-    if n % 2 == 0 {
+    if n.is_multiple_of(2) {
         k /= Float::sqrt(F::one() + eps * eps);
     }
 

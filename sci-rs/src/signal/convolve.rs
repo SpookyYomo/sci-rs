@@ -173,12 +173,12 @@ mod tests {
     #[test]
     #[cfg(feature = "plot")]
     fn test_scipy_example() {
-        use rand::distributions::{Distribution, Standard};
-        use rand::thread_rng;
+        use rand::distr::{Distribution, StandardUniform};
+        use rand::rng;
 
         // Generate 1000 random samples from standard normal distribution
-        let mut rng = thread_rng();
-        let sig: Vec<f64> = Standard.sample_iter(&mut rng).take(1000).collect();
+        let mut rng = rng();
+        let sig: Vec<f64> = StandardUniform.sample_iter(&mut rng).take(1000).collect();
 
         // Compute autocorrelation using correlate directly
         let autocorr = correlate(&sig, &sig, ConvolveMode::Full);

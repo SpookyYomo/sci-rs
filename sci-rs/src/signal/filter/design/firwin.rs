@@ -100,7 +100,7 @@ fn firwin_dyn_validate<F: Real + PartialOrd, W: Real>(
     // Cannot use != on &impl GetWindow.
     if window.is_some() && width.is_some() {
         return Err(Error::InvalidArg {
-            arg: "cutoff".into(),
+            arg: "window/width".into(),
             reason: "Setting both window and width to something is silently ignored only in Scipy."
                 .into(),
         });
@@ -771,7 +771,7 @@ mod test {
             assert_eq!(
                 conflicting.unwrap_err(),
                 E::InvalidArg {
-                    arg: "cutoff".into(),
+                    arg: "window/width".into(),
                     reason: "Setting both window and width to something is silently ignored only in Scipy."
                         .into()
                 }

@@ -333,18 +333,12 @@ where
     }
 }
 
-// Convenience macro for down-stream users
-/// This provides the same convenience function as in the scipy.signal namespace. Returns a window
-/// of given length and type.
-///
-/// # Parameters:
-/// - window: The type of window to create.  
-/// - m: Number of samples in the window.  
-/// - fftbins: If true (default), creates a "periodic" window, ready to use with ifftshift and be
-///   multiplied by the result of an FFT. If False, create a "symmetric" window, for use in filter design.
+/// Documentation is provided only at the public point of the interface. It is mangled here to
+/// provide scoping.
 // #[cfg(feature = "std")]
+#[doc(hidden)]
 #[macro_export]
-macro_rules! get_window {
+macro_rules! _signal_windows_getWindow {
     // Parameterized windows (tuple form with sym)
     ( ("kaiser", $beta:expr), $m:expr, $sym:expr ) => {
         $crate::signal::windows::Kaiser::new($m, $beta, !$sym).get_window()

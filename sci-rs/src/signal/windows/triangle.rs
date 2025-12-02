@@ -66,7 +66,7 @@ where
     /// (`std` feature is required for macros.)
     /// #[cfg(feature = "std")]
     /// ```
-    /// use sci_rs::get_window;
+    /// use sci_rs::signal::get_window;
     /// use sci_rs::signal::windows::GetWindow;
     /// let actual = get_window!("triangle", 8);
     /// assert_eq!(vec![0.125, 0.375, 0.625, 0.875, 0.875, 0.625, 0.375, 0.125], actual);
@@ -209,7 +209,7 @@ mod tests {
     #[test]
     #[cfg(feature = "std")]
     fn from_macro() {
-        use crate::get_window;
+        use crate::signal::get_window;
 
         let actual = get_window!("triangle", 8);
         assert_eq!(

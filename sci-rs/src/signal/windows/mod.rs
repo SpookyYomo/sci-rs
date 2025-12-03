@@ -340,30 +340,37 @@ where
 #[macro_export]
 macro_rules! _signal_windows_getWindow {
     // Parameterized windows (tuple form with sym)
-    ( ("kaiser", $beta:expr), $m:expr, $sym:expr ) => {
+    ( ("kaiser", $beta:expr), $m:expr, $sym:expr ) => {{
+        use $crate::signal::windows::GetWindow;
         $crate::signal::windows::Kaiser::new($m, $beta, !$sym).get_window()
-    };
+    }};
     // ( ("kaiser_bessel_derived", $beta:expr), $m:expr, $sym:expr ) => {
     //     $crate::signal::windows::KaiserBesselDerived::new($m, $beta, !$sym).get_window()
     // };
-    ( ("gaussian", $std:expr), $m:expr, $sym:expr ) => {
+    ( ("gaussian", $std:expr), $m:expr, $sym:expr ) => {{
+        use $crate::signal::windows::GetWindow;
         $crate::signal::windows::Gaussian::new($m, $std, $sym).get_window()
-    };
-    ( ("general_cosine", $($coeff:expr),+), $m:expr, $sym:expr ) => {
+    }};
+    ( ("general_cosine", $($coeff:expr),+), $m:expr, $sym:expr ) => {{
+        use $crate::signal::windows::GetWindow;
         $crate::signal::windows::GeneralCosine::new($m, &vec![$($coeff),+], $sym).get_window()
-    };
-    ( ("general_gaussian", $power:expr, $width:expr), $m:expr, $sym:expr ) => {
+    }};
+    ( ("general_gaussian", $power:expr, $width:expr), $m:expr, $sym:expr ) => {{
+        use $crate::signal::windows::GetWindow;
         $crate::signal::windows::GeneralGaussian::new($m, $power, $width, $sym).get_window()
-    };
-    ( ("general_hamming", $alpha:expr), $m:expr, $sym:expr ) => {
+    }};
+    ( ("general_hamming", $alpha:expr), $m:expr, $sym:expr ) => {{
+        use $crate::signal::windows::GetWindow;
         $crate::signal::windows::GeneralHamming::new($m, $alpha, $sym).get_window()
-    };
-    // ( ("dpss", $bandwidth:expr), $m:expr, $sym:expr ) => {
+    }};
+    // ( ("dpss", $bandwidth:expr), $m:expr, $sym:expr ) => {{
+    //     use $crate::signal::windows::GetWindow;
     //     $crate::signal::windows::Dpss::new($m, $bandwidth, $sym).get_window()
-    // };
-    ( ("chebwin", $attenuation:expr), $m:expr, $sym:expr ) => {
+    // }};
+    ( ("chebwin", $attenuation:expr), $m:expr, $sym:expr ) => {{
+        use $crate::signal::windows::GetWindow;
         $crate::signal::windows::Chebwin::new($m, $attenuation, $sym).get_window()
-    };
+    }};
 
     // Parameterized windows (tuple form without sym - defaults to true)
     ( ("kaiser", $beta:expr), $m:expr ) => {
@@ -392,60 +399,77 @@ macro_rules! _signal_windows_getWindow {
     // };
 
     // Simple windows (string form with sym)
-    ("boxcar", $m:expr, $sym:expr) => {
+    ("boxcar", $m:expr, $sym:expr) => {{
+        use $crate::signal::windows::GetWindow;
         $crate::signal::windows::Boxcar::new($m, $sym).get_window()
-    };
+    }};
     ("triang", $m:expr, $sym:expr) => {
         get_window!("triangle", $m, $sym)
     };
-    ("triangle", $m:expr, $sym:expr) => {
+    ("triangle", $m:expr, $sym:expr) => {{
+        use $crate::signal::windows::GetWindow;
         $crate::signal::windows::Triangle::new($m, $sym).get_window()
-    };
-    ("blackman", $m:expr, $sym:expr) => {
+    }};
+    ("blackman", $m:expr, $sym:expr) => {{
+        use $crate::signal::windows::GetWindow;
         $crate::signal::windows::Blackman::new($m, $sym).get_window()
-    };
-    ("hamming", $m:expr, $sym:expr) => {
+    }};
+    ("hamming", $m:expr, $sym:expr) => {{
+        use $crate::signal::windows::GetWindow;
         $crate::signal::windows::Hamming::new($m, $sym).get_window()
-    };
-    // ("hann", $m:expr, $sym:expr) => {
+    }};
+    // ("hann", $m:expr, $sym:expr) => {{
+    //     use $crate::signal::windows::GetWindow;
     //     Hann::new($m, $sym).get_window()
-    // };
-    // ("bartlett", $m:expr, $sym:expr) => {
+    // }};
+    // ("bartlett", $m:expr, $sym:expr) => {{
+    //     use $crate::signal::windows::GetWindow;
     //     Bartlett::new($m, $sym).get_window()
-    // };
-    // ("flattop", $m:expr, $sym:expr) => {
+    // }};
+    // ("flattop", $m:expr, $sym:expr) => {{
+    //     use $crate::signal::windows::GetWindow;
     //     FlatTop::new($m, $sym).get_window()
-    // };
-    // ("parzen", $m:expr, $sym:expr) => {
+    // }};
+    // ("parzen", $m:expr, $sym:expr) => {{
+    //     use $crate::signal::windows::GetWindow;
     //     Parzen::new($m, $sym).get_window()
-    // };
-    // ("bohman", $m:expr, $sym:expr) => {
+    // }};
+    // ("bohman", $m:expr, $sym:expr) => {{
+    //     use $crate::signal::windows::GetWindow;
     //     Bohman::new($m, $sym).get_window()
-    // };
-    // ("blackmanharris", $m:expr, $sym:expr) => {
+    // }};
+    // ("blackmanharris", $m:expr, $sym:expr) => {{
+    //     use $crate::signal::windows::GetWindow;
     //     BlackmanHarris::new($m, $sym).get_window()
-    // };
-    ("nuttall", $m:expr, $sym:expr) => {
+    // }};
+    ("nuttall", $m:expr, $sym:expr) => {{
+        use $crate::signal::windows::GetWindow;
         $crate::signal::windows::Nuttall::new($m, $sym).get_window()
-    };
-    // ("barthann", $m:expr, $sym:expr) => {
+    }};
+    // ("barthann", $m:expr, $sym:expr) => {{
+    //     use $crate::signal::windows::GetWindow;
     //     BartHann::new($m, $sym).get_window()
-    // };
-    // ("cosine", $m:expr, $sym:expr) => {
+    // }};
+    // ("cosine", $m:expr, $sym:expr) => {{
+    //     use $crate::signal::windows::GetWindow;
     //     Cosine::new($m, $sym).get_window()
-    // };
-    // ("exponential", $m:expr, $sym:expr) => {
+    // }};
+    // ("exponential", $m:expr, $sym:expr) => {{
+    //     use $crate::signal::windows::GetWindow;
     //     Exponential::new($m, $sym).get_window()
-    // };
-    // ("tukey", $m:expr, $sym:expr) => {
+    // }};
+    // ("tukey", $m:expr, $sym:expr) => {{
+    //     use $crate::signal::windows::GetWindow;
     //     Tukey::new($m, $sym).get_window()
-    // };
-    // ("taylor", $m:expr, $sym:expr) => {
+    // }};
+    // ("taylor", $m:expr, $sym:expr) => {{
+    //     use $crate::signal::windows::GetWindow;
     //     Taylor::new($m, $sym).get_window()
-    // };
-    // ("lanczos", $m:expr, $sym:expr) => {
+    // }};
+    // ("lanczos", $m:expr, $sym:expr) => {{
+    //     use $crate::signal::windows::GetWindow;
     //     Lanczos::new($m, $sym).get_window()
-    // };
+    // }};
 
     // Simple windows (string form without sym - defaults to true)
     ("boxcar", $m:expr) => { get_window!("boxcar", $m, true) };

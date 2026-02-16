@@ -2,15 +2,7 @@ use nalgebra::Complex;
 use num_traits::{Float, FromPrimitive, Signed, Zero};
 use rustfft::{FftNum, FftPlanner};
 
-/// Convolution mode determines behavior near edges and output size
-pub enum ConvolveMode {
-    /// Full convolution, output size is `in1.len() + in2.len() - 1`
-    Full,
-    /// Valid convolution, output size is `max(in1.len(), in2.len()) - min(in1.len(), in2.len()) + 1`
-    Valid,
-    /// Same convolution, output size is `in1.len()`
-    Same,
-}
+pub use sci_rs_core::num_rs::ConvolveMode;
 
 /// Performs FFT-based convolution on two slices of floating point values.
 ///
@@ -173,12 +165,12 @@ mod tests {
     #[test]
     #[cfg(feature = "plot")]
     fn test_scipy_example() {
-        use rand::distributions::{Distribution, Standard};
-        use rand::thread_rng;
+        use rand::distr::{Distribution, StandardUniform};
+        use rand::rng;
 
         // Generate 1000 random samples from standard normal distribution
-        let mut rng = thread_rng();
-        let sig: Vec<f64> = Standard.sample_iter(&mut rng).take(1000).collect();
+        let mut rng = rng();
+        let sig: Vec<f64> = StandardUniform.sample_iter(&mut rng).take(1000).collect();
 
         // Compute autocorrelation using correlate directly
         let autocorr = correlate(&sig, &sig, ConvolveMode::Full);

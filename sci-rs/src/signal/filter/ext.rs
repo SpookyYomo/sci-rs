@@ -3,9 +3,10 @@ use core::ops::Sub;
 use nalgebra::{allocator::Allocator, DefaultAllocator, Dim, Dyn, OMatrix, Scalar};
 use num_traits::{One, Zero};
 
-///
 /// Pad types.
 ///
+/// Used by [super::sosfiltfilt].  
+/// This differs from [super::FiltFiltPadType] which has different semantics.
 pub enum Pad {
     /// No padding.
     None,
@@ -20,9 +21,7 @@ pub enum Pad {
     Constant,
 }
 
-///
-/// Pad an array.
-///
+/// Pad an [nalgebra] array.
 pub fn pad<T, M, N>(
     padtype: Pad,
     mut padlen: Option<usize>,
@@ -89,9 +88,9 @@ where
     }
 }
 
+/// Pad an [nalgebra] array with odd extension.
 ///
-/// Pad an array with odd extension.
-///
+// This differs from [super::FiltFiltPadType]'s ext that acts on [ndarray].
 pub fn odd_ext_dyn<T, M, N>(x: OMatrix<T, M, N>, n: usize, axis: usize) -> OMatrix<T, Dyn, Dyn>
 where
     T: Scalar + Copy + Zero + One + Sub<Output = T>,

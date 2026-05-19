@@ -57,7 +57,7 @@ where
     #[cfg(feature = "alloc")]
     fn get_window(&self) -> Vec<W> {
         if len_guard(self.m) {
-            return Vec::<W>::new();
+            return vec![W::one(); self.m];
         }
         let (m, needs_trunc) = extend(self.m, self.sym);
 
@@ -74,9 +74,17 @@ mod test {
     use super::*;
 
     #[test]
-    fn case_a() {
+    fn boxcar_case_a() {
         let nx = 5;
         let boxcar = Boxcar::new(nx, false);
+        let window: Vec<f64> = boxcar.get_window();
+        assert_eq!(vec![1.; nx], window);
+    }
+
+    #[test]
+    fn boxcar_case_b() {
+        let nx = 1;
+        let boxcar = Boxcar::new(nx, true);
         let window: Vec<f64> = boxcar.get_window();
         assert_eq!(vec![1.; nx], window);
     }

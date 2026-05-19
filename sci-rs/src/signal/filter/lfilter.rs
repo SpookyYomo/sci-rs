@@ -92,8 +92,8 @@ where
         zi: Option<ArrayView<T, Dim<[Ix; N]>>>,
     ) -> Result<LFilterResult<T, N>>
     where
-        T: NumAssign + FromPrimitive + Copy + 'a,
-        S: Data<Elem = T> + 'a;
+        T: NumAssign + FromPrimitive + Copy,
+        S: Data<Elem = T>;
 }
 
 macro_rules! lfilter_for_dim {
@@ -110,8 +110,7 @@ macro_rules! lfilter_for_dim {
                 zi: Option<ArrayView<T, Dim<[Ix; $N]>>>,
             ) -> Result<(Array<T, Dim<[Ix; $N]>>, Option<Array<T, Dim<[Ix; $N]>>>)>
             where
-                T: NumAssign + FromPrimitive + Copy + 'a,
-                S: 'a,
+                T: NumAssign + FromPrimitive + Copy,
             {
                 if a.len() > 1 {
                     return linear_filter(b, a, x, axis, zi);
@@ -651,8 +650,7 @@ fn linear_filter<'a, T, S, D>(
 ) -> Result<LFilterDynResult<T, D>>
 where
     D: Dimension,
-    T: 'a,
-    S: Data<Elem = T> + 'a,
+    S: Data<Elem = T>,
 {
     todo!()
 }
